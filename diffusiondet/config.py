@@ -75,3 +75,9 @@ def add_diffusiondet_config(cfg):
                                  [0, 256], [0, 192],
                                  [0, 192], [0, 96],
                                  [0, 10000])
+
+def add_fs_config(cfg):
+    cfg.FEWSHOT = CN()
+
+def add_additional_config(cfg):
+    cfg.DATASETS.VAL = ()
