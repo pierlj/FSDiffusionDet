@@ -32,9 +32,11 @@ from detectron2.evaluation import COCOEvaluator, LVISEvaluator, verify_results
 from detectron2.solver.build import maybe_add_gradient_clipping
 from detectron2.modeling import build_model
 
-from diffusiondet import DiffusionDetDatasetMapper, add_diffusiondet_config, DiffusionDetWithTTA
+from diffusiondet import DiffusionDetDatasetMapper, DiffusionDetWithTTA, add_diffusiondet_config, add_additional_config, \
+    add_fs_config
 from diffusiondet.util.model_ema import add_model_ema_configs, may_build_model_ema, may_get_ema_checkpointer, EMAHook, \
     apply_model_ema_and_restore, EMADetectionCheckpointer
+from diffusiondet.data import LOCAL_CATALOG, register_dataset 
 
 
 class Trainer(DefaultTrainer):
@@ -253,6 +255,9 @@ def setup(args):
     cfg = get_cfg()
     add_diffusiondet_config(cfg)
     add_model_ema_configs(cfg)
+    add_fs_config(cfg)
+    add_additional_config(cfg)
+
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     cfg.freeze()
@@ -262,6 +267,8 @@ def setup(args):
 
 def main(args):
     cfg = setup(args)
+    print('Registering dataset from LOCAL CATALOG with key: {}'.format(cfg.DATASETS.TRAIN[0].split('_')[0]))
+    register_dataset(LOCAL_CATALOG[cfg.DATASETS.TRAIN[0].split('_')[0]])
 
     if args.eval_only:
         model = Trainer.build_model(cfg)

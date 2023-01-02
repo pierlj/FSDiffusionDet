@@ -5,7 +5,7 @@
 # Contact: {sunpeize, cxrfzhang}@foxmail.com
 #
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-from .config import add_diffusiondet_config
+from .config import add_diffusiondet_config, add_fs_config, add_additional_config
 from .detector import DiffusionDet
 from .dataset_mapper import DiffusionDetDatasetMapper
 from .test_time_augmentation import DiffusionDetWithTTA
