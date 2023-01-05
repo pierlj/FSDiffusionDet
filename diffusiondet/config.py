@@ -1,10 +1,6 @@
-# ========================================
-# Modified by Shoufa Chen
-# ========================================
-# Modified by Peize Sun, Rufeng Zhang
-# Contact: {sunpeize, cxrfzhang}@foxmail.com
-#
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+import os
+from datetime import datetime
+
 from detectron2.config import CfgNode as CN
 
 
@@ -78,6 +74,21 @@ def add_diffusiondet_config(cfg):
 
 def add_fs_config(cfg):
     cfg.FEWSHOT = CN()
+    cfg.FEWSHOT.SPLIT_METHOD = 'deterministic'
+    cfg.FEWSHOT.N_CLASSES_TEST = 3
+    cfg.FEWSHOT.N_WAYS_TEST = 3
+    cfg.FEWSHOT.N_WAYS_TRAIN = 3
+    cfg.FEWSHOT.K_SHOT = 10
+
+    cfg.FINETUNE = CN()
+    cfg.FINETUNE.MAX_ITER = 100
+    
+
 
 def add_additional_config(cfg):
     cfg.DATASETS.VAL = ()
+    cfg.TRAIN_MODE = 'regular'
+
+def create_unique_output_path(ouput_dir):
+    dt_string = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
+    return os.path.join(ouput_dir, dt_string)
