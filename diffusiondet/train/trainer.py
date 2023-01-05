@@ -14,13 +14,14 @@ from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.data import build_detection_train_loader
 from detectron2.engine import DefaultTrainer, create_ddp_model, \
     AMPTrainer, SimpleTrainer, hooks
-from detectron2.evaluation import COCOEvaluator, LVISEvaluator
+from detectron2.evaluation import LVISEvaluator
 from detectron2.solver.build import maybe_add_gradient_clipping
 from detectron2.modeling import build_model
 
 from diffusiondet import DiffusionDetDatasetMapper, DiffusionDetWithTTA
 from diffusiondet.util.model_ema import may_build_model_ema, may_get_ema_checkpointer, EMAHook, \
     apply_model_ema_and_restore
+from ..eval.coco_evaluation import COCOEvaluator
 
 
 
@@ -231,3 +232,6 @@ class DiffusionTrainer(DefaultTrainer):
             # run writers in the end, so that evaluation metrics are written
             ret.append(hooks.PeriodicWriter(self.build_writers(), period=20))
         return ret
+    
+    def launch_training(self):
+        self.train()

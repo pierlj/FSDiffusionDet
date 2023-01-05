@@ -4,8 +4,10 @@ import torch
 from torch.utils.data import Sampler
 
 from detectron2.structures import Instances
-from detectron2.data import DatasetMapper, build_detection_train_loader
+from detectron2.data import build_detection_train_loader, build_detection_test_loader
+from detectron2.data.samplers import InferenceSampler
 import detectron2.data.transforms as T
+from .dataset_mapper import DiffusionDetDatasetMapper
 
 
 class ClassSampler(Sampler):
@@ -16,30 +18,34 @@ class ClassSampler(Sampler):
     class.
     """
 
-    def __init__(self, dataset_metadata, selected_classes, n_query=None, shuffle=True, rng=None):
+    def __init__(self, cfg, dataset_metadata, selected_classes, n_query=None, shuffle=True, is_train=True, seed=3):
         self.dataset_metadata = dataset_metadata
         self.selected_classes = selected_classes
         self.n_query = n_query
         self.slice = slice(0, n_query)
         self.shuffle = shuffle
-        self.rng = rng
+        self.is_train = is_train
+        self.seed = seed
+
+        self.class_table = copy.deepcopy(dataset_metadata.class_table)
+        if is_train:
+            self.filter_class_table(cfg.FEWSHOT.K_SHOT)
 
 
     def __iter__(self):
-        table = self.dataset_metadata.class_table
+        table = self.class_table
         selected_indices = []
         for c in self.selected_classes:
             if isinstance(c, torch.Tensor):
                 class_id = int(c.item())
             else:
                 class_id = int(c)
-            keep = torch.randperm(len(table[class_id]), generator=self.rng)[self.slice]
+            keep = torch.randperm(len(table[class_id]))[self.slice]
             selected_indices = selected_indices + [table[class_id][k] for k in keep]
         selected_indices = torch.Tensor(selected_indices)
-
         # Retrieve indices inside dataset from img ids
         if self.shuffle:
-            shuffle = torch.randperm(selected_indices.shape[0], generator=self.rng)
+            shuffle = torch.randperm(selected_indices.shape[0])
             yield from selected_indices[shuffle].long().tolist()
         else:
             yield from selected_indices.long().tolist()
@@ -47,8 +53,11 @@ class ClassSampler(Sampler):
     def __len__(self):
         length = 0
         for c in self.selected_classes:
-            cls = int(c.item())
-            table = self.dataset_metadata.class_table
+            if isinstance(c, torch.Tensor):
+                cls = int(c.item())
+            else:
+                cls = int(c)
+            table = self.class_table
             if self.n_query is not None:
                 length += min(
                     self.n_query,
@@ -57,6 +66,13 @@ class ClassSampler(Sampler):
                 length += len(table[cls])
 
         return length
+    
+    def filter_class_table(self, k_shots):
+        for c in self.dataset_metadata.novel_classes:
+            rng = torch.Generator()
+            rng.manual_seed(self.seed)
+            perm = torch.randperm(len(self.class_table[c]), generator=rng)
+            self.class_table[c] = torch.tensor(self.class_table[c])[perm][:k_shots].tolist()
 
 def filter_instances(instances, keep):
     fields = instances.get_fields()
@@ -67,14 +83,35 @@ def filter_instances(instances, keep):
      
 
 class FilteredDataLoader():
-    def __init__(self, cfg, dataset, mapper, sampler):
+    """
+    Wrapper around the dataloader class from pytorch created with detectron2's 
+    building function. 
+
+    Two methods are available to change the annotation class filter and the allowed dataset pool of images. 
+     
+    """
+    def __init__(self, cfg, dataset, mapper, sampler, dataset_metadata, is_eval=False):
         self.mapper = mapper
         self.dataset = dataset
         self.sampler = sampler
-        self.dataloader = build_detection_train_loader(cfg, 
-                mapper=mapper,
-                dataset=dataset,
-                sampler=sampler)
+        self.dataset_metadata = dataset_metadata
+        self.is_eval = is_eval
+        if not is_eval:
+            self.dataloader = build_detection_train_loader(cfg,
+                    mapper=mapper,
+                    dataset=dataset,
+                    sampler=sampler)
+            self.keep_annotations_from_classes = mapper.selected_classes
+            self.draw_images_from_classes = sampler.selected_classes
+        else:
+            self.sampler = InferenceSampler(len(dataset))
+            self.dataloader = build_detection_test_loader(
+                    mapper=mapper,
+                    dataset=dataset,
+                    sampler=sampler,
+                    num_workers=cfg.DATALOADER.NUM_WORKERS,)
+        
+        
     
     def __iter__(self):
         yield next(iter(self.dataloader))
@@ -83,24 +120,39 @@ class FilteredDataLoader():
         return len(self.dataloader)
     
     def change_mapper_classes(self, selected_classes):
-        # self.dataloader.dataset.dataset.dataset._map_func._obj.selected_classes = selected_classes
+        self.keep_annotations_from_classes = selected_classes
         self.mapper.selected_classes = torch.tensor(selected_classes)
 
     
     def change_sampler_classes(self, selected_classes):
-        # self.dataloader.dataset.dataset.sampler.selected_classes = selected_classes
+        self.draw_images_from_classes = selected_classes
         self.sampler.selected_classes = torch.tensor(selected_classes)
 
+    def change_sampler_mapper_classes(self, selected_classe):
+        self.change_mapper_classes(selected_classes)
+        self.change_sampler_classes(selected_classes)
 
-class ClassMapper(DatasetMapper):
-    def __init__(self, selected_classes, *args, **kwargs):
+class ClassMapper(DiffusionDetDatasetMapper):
+    """
+    Dataset Mapper extension to filter out annotations whose labels do not belong
+    into selected_classes list. 
+    """
+    def __init__(self, selected_classes, contiguous_mapping, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.selected_classes = torch.tensor(selected_classes)
+        self.contiguous_mapping = contiguous_mapping
         
     def __call__(self, dataset_dict):
         dataset_dict = copy.deepcopy(super().__call__(dataset_dict))
         instances = dataset_dict['instances']
         labels = instances.get_fields()['gt_classes']
+        
+        # labels_contiguous = torch.zeros_like(labels)
+        # for idx in range(labels_contiguous.shape[0]):
+        #     labels_contiguous[idx] = self.contiguous_mapping[labels[idx].item()]
+        
+        # instances.set('gt_classes', labels_contiguous)
+        # labels = labels_contiguous
         
         keep = torch.where(labels.unsqueeze(-1) == self.selected_classes.unsqueeze(0))[0]
         dataset_dict['old_instances'] = copy.deepcopy(instances)

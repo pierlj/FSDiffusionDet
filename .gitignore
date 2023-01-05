@@ -3,7 +3,8 @@ output
 output*
 instant_test_output
 inference_test_output
-
+runs
+runs*
 
 *.json
 *.diff
@@ -23,6 +24,9 @@ wheels/
 *.pth
 *.pkl
 *.npy
+
+# utils bash script
+*.sh
 
 # ipython/jupyter notebooks
 *.ipynb

@@ -22,10 +22,13 @@ from detectron2.engine import default_argument_parser, default_setup, launch
 from detectron2.evaluation import verify_results
 from detectron2.modeling import build_model
 
-from diffusiondet import DiffusionDetDatasetMapper, add_diffusiondet_config, DiffusionDetWithTTA
+from diffusiondet import DiffusionDetDatasetMapper, add_diffusiondet_config, \
+    DiffusionDetWithTTA, add_additional_config, add_fs_config, create_unique_output_path
 from diffusiondet.util.model_ema import add_model_ema_configs, may_get_ema_checkpointer, EMADetectionCheckpointer
 
-from diffusiondet.train import DiffusionTrainer
+from diffusiondet.train import DiffusionTrainer, FineTuningTrainer
+from diffusiondet.data import register_dataset, LOCAL_CATALOG
+
 
 def setup(args):
     """
@@ -39,6 +42,7 @@ def setup(args):
 
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
+    cfg.OUTPUT_DIR = create_unique_output_path(cfg.OUTPUT_DIR) if not args.resume else cfg.OUTPUT_DIR
     cfg.freeze()
     default_setup(cfg, args)
     return cfg
@@ -48,7 +52,7 @@ def select_trainer(cfg):
     if cfg.TRAIN_MODE == 'regular':
         return DiffusionTrainer
     elif cfg.TRAIN_MODE == 'simplefs':
-        return FSDiffusionTrainer
+        return FineTuningTrainer
 
 def main(args):
     cfg = setup(args)
@@ -75,7 +79,7 @@ def main(args):
 
     trainer = Trainer(cfg)
     trainer.resume_or_load(resume=args.resume)
-    return trainer.train()
+    return trainer.launch_training()
 
 
 if __name__ == "__main__":
