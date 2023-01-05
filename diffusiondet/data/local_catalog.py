@@ -1,4 +1,4 @@
-dota_dict = {'root_path': '/home/pierre/Documents/PHD/Datasets/DOTA_v2/coco_format/',
+dota_dict = {'root_path': '/gpfsscratch/rech/vlf/ues92cf/DOTA/coco_format/',
                 'name': 'DOTA',
                 'splits': ['train2017', 'test2017', 'val2017'],
                 'class_split_file': 'classes_split.txt'}
