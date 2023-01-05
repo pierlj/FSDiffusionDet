@@ -45,3 +45,15 @@ _darcs
 !/datasets/*.*
 /projects/*/datasets
 
+diffusiondet/data/local_catalog.py
+
+gpfswork/
+gpfswork/*
+
+logs/
+logs/*
+
+stderr.txt
+stdout.txt
+
+*.slurm
