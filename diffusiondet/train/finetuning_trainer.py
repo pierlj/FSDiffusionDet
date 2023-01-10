@@ -74,6 +74,7 @@ class FineTuningTrainer(DiffusionTrainer):
         self.start_iter = 0
         self.max_iter = cfg.SOLVER.MAX_ITER
         self.cfg = cfg
+        self.is_finetuning = False
 
     
         self.register_hooks(self.build_hooks())
@@ -130,11 +131,21 @@ class FineTuningTrainer(DiffusionTrainer):
         # freeze net
         self.freeze_model(freeze_modules=['backbone', 'head'], 
                             backbone_freeze_at=0, # all backbone
-                            cls_reg_module=True) #last layer of each head only is trained
+                            cls_reg_module=False) #last layer of each head only is trained
+             
                             
         # update allowed classes
-        self.data_loader = self.build_train_loader(self.cfg, self.task_sampler.c_test)
-
+        if self.cfg.FINETUNE.NOVEL_ONLY:
+            selected_classes = self.task_sampler.c_test
+            self.replace_classification_layer()
+            self.model.criterion.num_classes = len(selected_classes)
+        else:
+            selected_classes = self.task_sampler.classes
+        self.data_loader = self.build_train_loader(self.cfg, 
+                                            selected_classes, 
+                                            n_query=self.cfg.FEWSHOT.K_SHOT, 
+                                            remap_labels=self.cfg.FINETUNE.NOVEL_ONLY)
+        
         # Update cfg params 
         self.cfg.merge_from_list(['SOLVER.MAX_ITER', self.cfg.FINETUNE.MAX_ITER])
         self.scheduler = self.build_lr_scheduler(self.cfg, self.optimizer)
@@ -145,18 +156,20 @@ class FineTuningTrainer(DiffusionTrainer):
 
         # update hooks for finetuning
         self._hooks = []
+        self.is_finetuning = True
         self.register_hooks(self.build_hooks(base_training=False)) 
 
     def build_dataset(self, cfg):
         self.dataset, self.dataset_metadata = get_datasets(cfg.DATASETS.TRAIN, cfg)
         self.task_sampler = TaskSampler(cfg, self.dataset_metadata, torch.Generator())
 
-    def build_train_loader(self, cfg, selected_classes):
-        sampler = ClassSampler(cfg, self.dataset_metadata, selected_classes, n_query=100, is_train=True)
+    def build_train_loader(self, cfg, selected_classes, n_query=100, remap_labels=False):
+        sampler = ClassSampler(cfg, self.dataset_metadata, selected_classes, n_query=n_query, is_train=True)
         mapper = ClassMapper(selected_classes, 
                             self.dataset_metadata.thing_dataset_id_to_contiguous_id,
                             cfg, 
-                            is_train=True)
+                            is_train=True, 
+                            remap_labels=remap_labels)
 
         dataloader = FilteredDataLoader(cfg, self.dataset, mapper, sampler, self.dataset_metadata)
         return dataloader
@@ -224,20 +237,28 @@ class FineTuningTrainer(DiffusionTrainer):
             prefix = 'model_base' if base_training else 'model_finetuned'
             ret.append(hooks.PeriodicCheckpointer(self.checkpointer, cfg.SOLVER.CHECKPOINT_PERIOD, file_prefix=prefix))
 
-        def test_and_save_results(validation=True):
+        def test_and_save_results(validation=True, is_finetuning=False):
             output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
             dataset_name = cfg.DATASETS.VAL[0] if validation else cfg.DATASETS.TEST[0]
-            evaluators = [
-                FSEvaluator(self.task_sampler.c_train, dataset_name, cfg, True, output_folder, name='Base classes evaluation'),
-                FSEvaluator(self.task_sampler.c_test, dataset_name, cfg, True, output_folder, name='Novel classes evaluation')
-            ]
+            if cfg.FINETUNE.NOVEL_ONLY and is_finetuning:
+                evaluators = [
+                    FSEvaluator(self.task_sampler.c_test, dataset_name, cfg, True, output_folder, name='Novel classes evaluation')
+                ]
+            else:
+                evaluators = [
+                    FSEvaluator(self.task_sampler.c_train, dataset_name, cfg, True, output_folder, name='Base classes evaluation'),
+                    FSEvaluator(self.task_sampler.c_test, dataset_name, cfg, True, output_folder, name='Novel classes evaluation')
+                ]
             self._last_eval_results = self.eval(self, self.cfg, self.model, evaluators, validation=validation)
             return self._last_eval_results
 
         # Do evaluation after checkpointer, because then if it fails,
         # we can use the saved checkpoint to debug.
-        ret.append(FSValidationHook(cfg.TEST.EVAL_PERIOD, test_and_save_results))
-        ret.append(FSTestHook(cfg.TEST.EVAL_PERIOD, lambda: test_and_save_results(validation=False)))
+        ret.append(FSValidationHook(cfg.TEST.EVAL_PERIOD, 
+                                lambda: test_and_save_results(is_finetuning=self.is_finetuning)))
+        ret.append(FSTestHook(cfg.TEST.EVAL_PERIOD, 
+                                lambda: test_and_save_results(validation=False, 
+                                                                is_finetuning=self.is_finetuning)))
 
         if comm.is_main_process():
             # Here the default print/log frequency of each writer is used.
@@ -313,6 +334,15 @@ class FineTuningTrainer(DiffusionTrainer):
             if time_mlp:        
                 for param in self.model.head.time_mlp.parameters():
                     param.requires_grad = False
+    
+    def replace_classification_layer(self):
+        for module in self.model.head.head_series:
+            in_features = module.class_logits.in_features
+            n_classes = self.cfg.FEWSHOT.N_WAYS_TEST
+            module.class_logits = torch.nn.Linear(in_features, 
+                                    n_classes, 
+                                    device=module.class_logits.weight.device,
+                                    dtype=module.class_logits.weight.dtype)
     
 
 
