@@ -137,26 +137,26 @@ class ClassMapper(DiffusionDetDatasetMapper):
     Dataset Mapper extension to filter out annotations whose labels do not belong
     into selected_classes list. 
     """
-    def __init__(self, selected_classes, contiguous_mapping, *args, **kwargs):
+    def __init__(self, selected_classes, contiguous_mapping, *args, remap_labels=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.selected_classes = torch.tensor(selected_classes)
         self.contiguous_mapping = contiguous_mapping
+        self.remap_labels = remap_labels
         
     def __call__(self, dataset_dict):
         dataset_dict = copy.deepcopy(super().__call__(dataset_dict))
         instances = dataset_dict['instances']
         labels = instances.get_fields()['gt_classes']
-        
-        # labels_contiguous = torch.zeros_like(labels)
-        # for idx in range(labels_contiguous.shape[0]):
-        #     labels_contiguous[idx] = self.contiguous_mapping[labels[idx].item()]
-        
-        # instances.set('gt_classes', labels_contiguous)
-        # labels = labels_contiguous
+
         
         keep = torch.where(labels.unsqueeze(-1) == self.selected_classes.unsqueeze(0))[0]
         dataset_dict['old_instances'] = copy.deepcopy(instances)
         instances = filter_instances(instances, keep)
+        if self.remap_labels:
+            instances.get_fields()['gt_classes']
+            labels = torch.where(self.selected_classes[None] == labels[:,None])[1]
+            instances.set('gt_classes', labels)
+
         dataset_dict['instances'] = instances
         
         return dataset_dict

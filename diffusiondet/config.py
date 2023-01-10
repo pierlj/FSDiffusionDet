@@ -82,6 +82,7 @@ def add_fs_config(cfg):
 
     cfg.FINETUNE = CN()
     cfg.FINETUNE.MAX_ITER = 100
+    cfg.FINETUNE.NOVEL_ONLY = True
     
 
 
