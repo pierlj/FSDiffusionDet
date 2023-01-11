@@ -102,10 +102,10 @@ class FineTuningTrainer(DiffusionTrainer):
 
     def run_step(self):
         assert self.model.training, "[SimpleTrainer] model was changed to eval mode!"
-        start = time.perf_counter()
+        # start = time.perf_counter()
 
         data = next(iter(self.data_loader))
-        data_time = time.perf_counter() - start
+        # data_time = time.perf_counter() - start
        
         loss_dict = self.model(data)
         if isinstance(loss_dict, torch.Tensor):
@@ -118,7 +118,7 @@ class FineTuningTrainer(DiffusionTrainer):
         self.optimizer.zero_grad()
         losses.backward()
 
-        self._write_metrics(loss_dict, data_time)
+        self._write_metrics(loss_dict, 0.0)
 
         self.optimizer.step()
         return None 
