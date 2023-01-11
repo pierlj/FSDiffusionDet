@@ -29,7 +29,6 @@ from diffusiondet.util.model_ema import add_model_ema_configs, may_get_ema_check
 from diffusiondet.train import DiffusionTrainer, FineTuningTrainer
 from diffusiondet.data import register_dataset, LOCAL_CATALOG
 
-
 def setup(args):
     """
     Create configs and perform basic setups.
@@ -52,7 +51,7 @@ def select_trainer(cfg):
     if cfg.TRAIN_MODE == 'regular':
         return DiffusionTrainer
     elif cfg.TRAIN_MODE == 'simplefs':
-        return FineTuningTrainer
+        return FSDiffusionTrainer
 
 def main(args):
     cfg = setup(args)
