@@ -51,7 +51,7 @@ def select_trainer(cfg):
     if cfg.TRAIN_MODE == 'regular':
         return DiffusionTrainer
     elif cfg.TRAIN_MODE == 'simplefs':
-        return FSDiffusionTrainer
+        return FineTuningTrainer
 
 def main(args):
     cfg = setup(args)
