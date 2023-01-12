@@ -7,7 +7,9 @@ from detectron2.structures import Instances
 from detectron2.data import build_detection_train_loader, build_detection_test_loader
 from detectron2.data.samplers import InferenceSampler
 import detectron2.data.transforms as T
+
 from .dataset_mapper import DiffusionDetDatasetMapper
+from .utils import filter_class_table
 
 
 class ClassSampler(Sampler):
@@ -18,7 +20,7 @@ class ClassSampler(Sampler):
     class.
     """
 
-    def __init__(self, cfg, dataset_metadata, selected_classes, n_query=None, shuffle=True, is_train=True, seed=3):
+    def __init__(self, cfg, dataset_metadata, selected_classes, n_query=None, shuffle=True, is_train=True, is_support=False, seed=3):
         self.dataset_metadata = dataset_metadata
         self.selected_classes = selected_classes
         self.n_query = n_query
@@ -28,9 +30,10 @@ class ClassSampler(Sampler):
         self.seed = seed
 
         self.class_table = copy.deepcopy(dataset_metadata.class_table)
-        if is_train:
-            self.filter_class_table(cfg.FEWSHOT.K_SHOT)
-
+        if is_train and not is_support:
+            self.class_table = filter_class_table(self.class_table, cfg.FEWSHOT.K_SHOT, self.dataset_metadata.novel_classes)
+        elif is_support:
+            self.class_table = filter_class_table(self.class_table, cfg.FEWSHOT.K_SHOT, self.dataset_metadata.classes)
 
     def __iter__(self):
         table = self.class_table
@@ -67,12 +70,7 @@ class ClassSampler(Sampler):
 
         return length
     
-    def filter_class_table(self, k_shots):
-        for c in self.dataset_metadata.novel_classes:
-            rng = torch.Generator()
-            rng.manual_seed(self.seed)
-            perm = torch.randperm(len(self.class_table[c]), generator=rng)
-            self.class_table[c] = torch.tensor(self.class_table[c])[perm][:k_shots].tolist()
+
 
 def filter_instances(instances, keep):
     fields = instances.get_fields()

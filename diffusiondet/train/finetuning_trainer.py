@@ -28,6 +28,7 @@ from ..data.registration import get_datasets
 from ..data.task_sampling import TaskSampler
 from ..eval.fs_evaluator import FSEvaluator
 from ..eval.hooks import FSValidationHook, FSTestHook
+from ..data.utils import filter_class_table
 
 
 class FineTuningTrainer(DiffusionTrainer):
@@ -161,6 +162,9 @@ class FineTuningTrainer(DiffusionTrainer):
 
     def build_dataset(self, cfg):
         self.dataset, self.dataset_metadata = get_datasets(cfg.DATASETS.TRAIN, cfg)
+        self.dataset_metadata.class_table = filter_class_table(self.dataset_metadata.class_table, 
+                                                                cfg.FEWWSHOT.K_SHOT,
+                                                                self.dataset_metadata.novel_classes)
         self.task_sampler = TaskSampler(cfg, self.dataset_metadata, torch.Generator())
 
     def build_train_loader(self, cfg, selected_classes, n_query=100, remap_labels=False):
