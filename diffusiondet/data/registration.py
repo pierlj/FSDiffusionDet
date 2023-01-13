@@ -50,6 +50,8 @@ def get_datasets(datasets, cfg):
             proposal_files=cfg.DATASETS.PROPOSAL_FILES_TRAIN if cfg.MODEL.LOAD_PROPOSALS else None,
         )
     
+    dataset = filter_dataset(dataset, n_objects=cfg.MODEL.DiffusionDet.NUM_PROPOSALS)
+    
     metadata = None
     # if datasets are concatenated metadata cannot be easily combined
     # TO DO: write function that merge metadata of two datasets
@@ -65,3 +67,11 @@ def get_datasets(datasets, cfg):
                                                 metadata.thing_dataset_id_to_contiguous_id)
         
     return dataset, metadata
+
+
+def filter_dataset(dataset, n_objects=200):
+    filtered_dataset = []
+    for d in dataset:
+        if len(d['annotations']) <= n_objects:
+            filtered_dataset.append(d)
+    return filtered_dataset
