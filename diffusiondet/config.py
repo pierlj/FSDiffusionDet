@@ -83,7 +83,12 @@ def add_fs_config(cfg):
     cfg.FINETUNE = CN()
     cfg.FINETUNE.MAX_ITER = 100
     cfg.FINETUNE.NOVEL_ONLY = True
-    
+
+    cfg.FEWSHOT.ATTENTION = CN()
+    cfg.FEWSHOT.ATTENTION.EXTRACT_EVERY = 1
+
+    cfg.FEWSHOT.SUPPORT_EXTRACTOR = CN()
+    cfg.FEWSHOT.SUPPORT_EXTRACTOR.WEIGHT = "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
 
 
 def add_additional_config(cfg):

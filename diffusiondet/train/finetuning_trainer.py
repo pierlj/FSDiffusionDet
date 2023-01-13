@@ -28,6 +28,7 @@ from ..data.registration import get_datasets
 from ..data.task_sampling import TaskSampler
 from ..eval.fs_evaluator import FSEvaluator
 from ..eval.hooks import FSValidationHook, FSTestHook
+from ..train.hooks import SupportExtractionHook
 from ..data.utils import filter_class_table
 
 
@@ -103,10 +104,10 @@ class FineTuningTrainer(DiffusionTrainer):
 
     def run_step(self):
         assert self.model.training, "[SimpleTrainer] model was changed to eval mode!"
-        # start = time.perf_counter()
+        start = time.perf_counter()
 
         data = next(iter(self.data_loader))
-        # data_time = time.perf_counter() - start
+        data_time = time.perf_counter() - start
        
         loss_dict = self.model(data)
         if isinstance(loss_dict, torch.Tensor):
@@ -119,7 +120,7 @@ class FineTuningTrainer(DiffusionTrainer):
         self.optimizer.zero_grad()
         losses.backward()
 
-        self._write_metrics(loss_dict, 0.0)
+        self._write_metrics(loss_dict, data_time)
 
         self.optimizer.step()
         return None 
@@ -163,7 +164,7 @@ class FineTuningTrainer(DiffusionTrainer):
     def build_dataset(self, cfg):
         self.dataset, self.dataset_metadata = get_datasets(cfg.DATASETS.TRAIN, cfg)
         self.dataset_metadata.class_table = filter_class_table(self.dataset_metadata.class_table, 
-                                                                cfg.FEWWSHOT.K_SHOT,
+                                                                cfg.FEWSHOT.K_SHOT,
                                                                 self.dataset_metadata.novel_classes)
         self.task_sampler = TaskSampler(cfg, self.dataset_metadata, torch.Generator())
 
@@ -255,6 +256,21 @@ class FineTuningTrainer(DiffusionTrainer):
                 ]
             self._last_eval_results = self.eval(self, self.cfg, self.model, evaluators, validation=validation)
             return self._last_eval_results
+
+
+        def extract_support_features(source='train'):
+            if source == 'train':
+                self.model.compute_support_features(self.task_sampler.classes, self.dataset, self.dataset_metadata)
+            elif source == 'val':
+                dataset, metadata = get_datasets(cfg.DATASETS.VAL[0], self.cfg)
+                self.model.compute_support_features(self.task_sampler.classes, dataset, metadata)
+            else:
+                dataset, metadata = get_datasets(cfg.DATASETS.TEST[0], self.cfg)
+                self.model.compute_support_features(self.task_sampler.classes, dataset, metadata)
+            
+        if self.cfg.TRAIN_MODE == 'support_attention':
+            ret.append(SupportExtractionHook(self.cfg,
+                                            lambda: extract_support_features(source='train')))
 
         # Do evaluation after checkpointer, because then if it fails,
         # we can use the saved checkpoint to debug.
