@@ -111,6 +111,9 @@ class FilteredDataLoader():
                     sampler=sampler,
                     num_workers=cfg.DATALOADER.NUM_WORKERS,)
         
+        self.dataloader.batch_size = min(len(self.dataloader.dataset),
+                                            self.dataloader.batch_size)
+        
         
     
     def __iter__(self):
