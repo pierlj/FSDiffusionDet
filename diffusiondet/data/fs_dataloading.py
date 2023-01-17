@@ -27,7 +27,8 @@ class ClassSampler(Sampler):
     class.
     """
 
-    def __init__(self, cfg, dataset_metadata, selected_classes, n_query=None, shuffle=True, is_train=True, is_support=False, seed=3):
+    def __init__(self, cfg, dataset_metadata, selected_classes, n_query=None, shuffle=True, is_train=True, seed=3):
+        self.cfg = cfg
         self.dataset_metadata = dataset_metadata
         self.selected_classes = selected_classes
         self.n_query = n_query
@@ -37,10 +38,11 @@ class ClassSampler(Sampler):
         self.seed = seed
 
         self.class_table = copy.deepcopy(dataset_metadata.class_table)
-        if is_train and not is_support:
-            self.class_table = filter_class_table(self.class_table, cfg.FEWSHOT.K_SHOT, self.dataset_metadata.novel_classes)
-        elif is_support:
-            self.class_table = filter_class_table(self.class_table, cfg.FEWSHOT.K_SHOT, self.selected_classes)
+        self.filter_table()
+    
+    def filter_table(self):
+        if self.is_train:
+            self.class_table = filter_class_table(self.class_table, self.cfg.FEWSHOT.K_SHOT, self.dataset_metadata.novel_classes)
 
     def __iter__(self):
         table = self.class_table
@@ -86,9 +88,16 @@ class SupportClassSampler(ClassSampler):
     class.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, base_support=None, **kwargs):
+        self.base_support = base_support
         super().__init__(*args, **kwargs)
+        
 
+    def filter_table(self):
+        if self.base_support == 'same':
+            self.class_table = filter_class_table(self.class_table, self.cfg.FEWSHOT.K_SHOT, self.selected_classes)
+        else:
+            self.class_table = filter_class_table(self.class_table, self.cfg.FEWSHOT.K_SHOT, self.dataset_metadata.novel_classes)
 
     def __iter__(self):
         table = self.class_table
@@ -201,6 +210,42 @@ class ClassMapper(DiffusionDetDatasetMapper):
 
         
         keep = torch.where(labels.unsqueeze(-1) == self.selected_classes.unsqueeze(0))[0]
+        dataset_dict['old_instances'] = copy.deepcopy(instances)
+        instances = filter_instances(instances, keep)
+        if self.remap_labels:
+            instances.get_fields()['gt_classes']
+            labels = torch.where(self.selected_classes[None] == labels[:,None])[1]
+            instances.set('gt_classes', labels)
+
+        dataset_dict['instances'] = instances
+        
+        return dataset_dict
+
+class SupportClassMapper(DiffusionDetDatasetMapper):
+    """
+    Dataset Mapper extension to filter out annotations whose labels do not belong
+    into selected_classes list. 
+    """
+    def __init__(self, selected_classes, contiguous_mapping, class_repartition, base_support, *args, remap_labels=False, seed=1234, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.selected_classes = torch.tensor(selected_classes)
+        self.contiguous_mapping = contiguous_mapping
+        self.class_repartition = class_repartition
+        self.remap_labels = remap_labels
+        self.seed = seed
+        self.base_support = base_support
+        self.rng = torch.Generator()
+        
+    def __call__(self, dataset_dict):
+        dataset_dict = copy.deepcopy(super().__call__(dataset_dict))
+        instances = dataset_dict['instances']
+        labels = instances.gt_classes
+        labels_allowed = torch.tensor(dataset_dict['class_sampled'])
+        
+        if dataset_dict['class_sampled'] in self.class_repartition['novel'] or self.base_support == 'same':
+            self.rng.manual_seed(self.seed)
+        keep = torch.where(labels.unsqueeze(-1) == labels_allowed.unsqueeze(0))[0]
+        keep = keep[torch.randint(keep.shape[0], (1,), generator=self.rng)]
         dataset_dict['old_instances'] = copy.deepcopy(instances)
         instances = filter_instances(instances, keep)
         if self.remap_labels:

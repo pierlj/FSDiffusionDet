@@ -79,6 +79,7 @@ def add_fs_config(cfg):
     cfg.FEWSHOT.N_WAYS_TEST = 3
     cfg.FEWSHOT.N_WAYS_TRAIN = 3
     cfg.FEWSHOT.K_SHOT = 10
+    cfg.FEWSHOT.BASE_SUPPORT = 'rng' # 'rng' for random base example at each computation, 'same' for fixed support
 
     cfg.FINETUNE = CN()
     cfg.FINETUNE.MAX_ITER = 100
@@ -89,6 +90,7 @@ def add_fs_config(cfg):
 
     cfg.FEWSHOT.SUPPORT_EXTRACTOR = CN()
     cfg.FEWSHOT.SUPPORT_EXTRACTOR.WEIGHT = "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
+    
 
 
 def add_additional_config(cfg):

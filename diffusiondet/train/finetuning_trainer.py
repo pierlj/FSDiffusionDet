@@ -364,7 +364,19 @@ class FineTuningTrainer(DiffusionTrainer):
                                     device=module.class_logits.weight.device,
                                     dtype=module.class_logits.weight.dtype)
     
+    def resume_or_load(self, resume=True):
+        # if resume=True, state dict should contain support extractor's weights
+        # otherwise to avoid key conflicts, load state dict before the creation of 
+        # the support extractor.
+        if resume:
+            self.model.build_support_extractor()
 
+        super().resume_or_load(resume=resume)
+
+        if not resume:
+            self.model.build_support_extractor()
+
+        
 
 
         
