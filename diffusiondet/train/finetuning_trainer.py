@@ -10,7 +10,7 @@ from collections import OrderedDict
 import detectron2.utils.comm as comm
 from detectron2.utils.logger import setup_logger
 from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.data import build_detection_train_loader
+from detectron2.data import build_detection_train_loader, DatasetMapper
 from detectron2.engine import DefaultTrainer, create_ddp_model, \
     AMPTrainer, SimpleTrainer, hooks, TrainerBase
 from detectron2.evaluation import DatasetEvaluator, print_csv_format
@@ -28,6 +28,8 @@ from ..data.registration import get_datasets
 from ..data.task_sampling import TaskSampler
 from ..eval.fs_evaluator import FSEvaluator
 from ..eval.hooks import FSValidationHook, FSTestHook
+from ..train.hooks import SupportExtractionHook
+from ..data.utils import filter_class_table
 
 
 class FineTuningTrainer(DiffusionTrainer):
@@ -102,10 +104,10 @@ class FineTuningTrainer(DiffusionTrainer):
 
     def run_step(self):
         assert self.model.training, "[SimpleTrainer] model was changed to eval mode!"
-        # start = time.perf_counter()
+        start = time.perf_counter()
 
         data = next(iter(self.data_loader))
-        # data_time = time.perf_counter() - start
+        data_time = time.perf_counter() - start
        
         loss_dict = self.model(data)
         if isinstance(loss_dict, torch.Tensor):
@@ -118,7 +120,7 @@ class FineTuningTrainer(DiffusionTrainer):
         self.optimizer.zero_grad()
         losses.backward()
 
-        self._write_metrics(loss_dict, 0.0)
+        self._write_metrics(loss_dict, data_time)
 
         self.optimizer.step()
         return None 
@@ -129,7 +131,8 @@ class FineTuningTrainer(DiffusionTrainer):
         #     setup_logger(name='finetuning')
 
         # freeze net
-        self.freeze_model(freeze_modules=['backbone', 'head'], 
+        # self.freeze_model(freeze_modules=['backbone', 'head'], 
+        self.freeze_model(freeze_modules=['backbone',], 
                             backbone_freeze_at=0, # all backbone
                             cls_reg_module=False) #last layer of each head only is trained
              
@@ -139,6 +142,11 @@ class FineTuningTrainer(DiffusionTrainer):
             selected_classes = self.task_sampler.c_test
             self.replace_classification_layer()
             self.model.criterion.num_classes = len(selected_classes)
+            self.model.selected_classes = selected_classes
+            self.model.num_classes = len(selected_classes)
+            self.model.head.num_classes = len(selected_classes)
+            for head in self.model.head.head_series:
+                head.num_classes = len(selected_classes)
         else:
             selected_classes = self.task_sampler.classes
         self.data_loader = self.build_train_loader(self.cfg, 
@@ -157,10 +165,13 @@ class FineTuningTrainer(DiffusionTrainer):
         # update hooks for finetuning
         self._hooks = []
         self.is_finetuning = True
-        self.register_hooks(self.build_hooks(base_training=False)) 
+        self.register_hooks(self.build_hooks()) 
 
     def build_dataset(self, cfg):
         self.dataset, self.dataset_metadata = get_datasets(cfg.DATASETS.TRAIN, cfg)
+        self.dataset_metadata.class_table = filter_class_table(self.dataset_metadata.class_table, 
+                                                                cfg.FEWSHOT.K_SHOT,
+                                                                self.dataset_metadata.novel_classes)
         self.task_sampler = TaskSampler(cfg, self.dataset_metadata, torch.Generator())
 
     def build_train_loader(self, cfg, selected_classes, n_query=100, remap_labels=False):
@@ -179,11 +190,9 @@ class FineTuningTrainer(DiffusionTrainer):
         dataset, dataset_metadata = get_datasets(cfg.DATASETS.VAL 
                                                     if validation else cfg.DATASETS.TEST, 
                                                 cfg)
-        sampler = ClassSampler(cfg, dataset_metadata, selected_classes, n_query=100, is_train=False)
-        mapper = ClassMapper(selected_classes, 
-                            dataset_metadata.thing_dataset_id_to_contiguous_id,
-                            cfg, 
-                            is_train=True)
+        sampler = ClassSampler(cfg, dataset_metadata, selected_classes, n_query=-1, is_train=False)
+        
+        mapper = DatasetMapper(cfg, False)
 
         dataloader = FilteredDataLoader(cfg, 
                                         dataset, 
@@ -201,7 +210,7 @@ class FineTuningTrainer(DiffusionTrainer):
     ) -> None:
         SimpleTrainer.write_metrics(loss_dict, data_time, prefix)
     
-    def build_hooks(self, base_training=True):
+    def build_hooks(self):
         """
         Build a list of default hooks, including timing, evaluation,
         checkpointing, lr scheduling, precise BN, writing events.
@@ -234,7 +243,7 @@ class FineTuningTrainer(DiffusionTrainer):
         # This is not always the best: if checkpointing has a different frequency,
         # some checkpoints may have more precise statistics than others.
         if comm.is_main_process():
-            prefix = 'model_base' if base_training else 'model_finetuned'
+            prefix = 'model_base' if not self.is_finetuning else 'model_finetuned'
             ret.append(hooks.PeriodicCheckpointer(self.checkpointer, cfg.SOLVER.CHECKPOINT_PERIOD, file_prefix=prefix))
 
         def test_and_save_results(validation=True, is_finetuning=False):
@@ -242,23 +251,46 @@ class FineTuningTrainer(DiffusionTrainer):
             dataset_name = cfg.DATASETS.VAL[0] if validation else cfg.DATASETS.TEST[0]
             if cfg.FINETUNE.NOVEL_ONLY and is_finetuning:
                 evaluators = [
-                    FSEvaluator(self.task_sampler.c_test, dataset_name, cfg, True, output_folder, name='Novel classes evaluation')
+                    FSEvaluator(self.task_sampler.c_test, dataset_name, cfg, True, output_folder, name='Novel classes evaluation'),
                 ]
             else:
                 evaluators = [
                     FSEvaluator(self.task_sampler.c_train, dataset_name, cfg, True, output_folder, name='Base classes evaluation'),
-                    FSEvaluator(self.task_sampler.c_test, dataset_name, cfg, True, output_folder, name='Novel classes evaluation')
+                    # FSEvaluator(self.task_sampler.c_test, dataset_name, cfg, True, output_folder, name='Novel classes evaluation')
                 ]
             self._last_eval_results = self.eval(self, self.cfg, self.model, evaluators, validation=validation)
             return self._last_eval_results
+
+
+        def extract_support_features(source='train'):
+            if source == 'train':
+                self.model.compute_support_features(self.task_sampler.classes, self.dataset, self.dataset_metadata)
+            elif source == 'val':
+                dataset, metadata = get_datasets(cfg.DATASETS.VAL[0], self.cfg)
+                self.model.compute_support_features(self.task_sampler.classes, dataset, metadata)
+            else:
+                dataset, metadata = get_datasets(cfg.DATASETS.TEST[0], self.cfg)
+                self.model.compute_support_features(self.task_sampler.classes, dataset, metadata)
+            
+        if self.cfg.TRAIN_MODE == 'support_attention':
+            ret.append(SupportExtractionHook(self.cfg,
+                                            lambda: extract_support_features(source='train')))
 
         # Do evaluation after checkpointer, because then if it fails,
         # we can use the saved checkpoint to debug.
         ret.append(FSValidationHook(cfg.TEST.EVAL_PERIOD, 
                                 lambda: test_and_save_results(is_finetuning=self.is_finetuning)))
         ret.append(FSTestHook(cfg.TEST.EVAL_PERIOD, 
-                                lambda: test_and_save_results(validation=False, 
+                                lambda: test_and_save_results(validation=True, 
                                                                 is_finetuning=self.is_finetuning)))
+
+        # def test_and_save_Results():
+        #     self._last_eval_results = self.test(self.cfg, self.model)
+        #     return self._last_eval_results
+
+        # # Do evaluation after checkpointer, because then if it fails,
+        # # we can use the saved checkpoint to debug.
+        # ret.append(hooks.EvalHook(cfg.TEST.EVAL_PERIOD, test_and_save_results))
 
         if comm.is_main_process():
             # Here the default print/log frequency of each writer is used.
@@ -304,8 +336,8 @@ class FineTuningTrainer(DiffusionTrainer):
                 logger.info("Evaluation results for {} in csv format:".format(dataset_name))
                 print_csv_format(results_i)
 
-        if len(results) == 1:
-            results = list(results.values())[0]
+        # if len(results) == 1:
+        #     results = list(results.values())[0]
         return results
     
     def freeze_model(self, freeze_modules=['backbone'], backbone_freeze_at=0, cls_reg_module=False, time_mlp=True):
@@ -325,10 +357,11 @@ class FineTuningTrainer(DiffusionTrainer):
             hot_modules = ['cls_module', 'reg_module', 'class_logits', 'bboxes_delta']
             for module in self.model.head.head_series:
                 for name, param in module.named_parameters():
-                    print(name)
                     if all([hm not in name for hm in hot_modules]):
+                        self.logger.info('Freeze param: {}'.format(name))
                         param.requires_grad = False
                     elif ('cls_module' in name or 'reg_module' in name) and cls_reg_module:
+                        self.logger.info('Freeze param: {}'.format(name))
                         param.requires_grad = False
 
             if time_mlp:        
@@ -344,7 +377,19 @@ class FineTuningTrainer(DiffusionTrainer):
                                     device=module.class_logits.weight.device,
                                     dtype=module.class_logits.weight.dtype)
     
+    def resume_or_load(self, resume=True):
+        # if resume=True, state dict should contain support extractor's weights
+        # otherwise to avoid key conflicts, load state dict before the creation of 
+        # the support extractor.
+        if resume:
+            self.model.build_support_extractor()
 
+        super().resume_or_load(resume=resume)
+
+        if not resume:
+            self.model.build_support_extractor()
+
+        
 
 
         
