@@ -90,6 +90,7 @@ class FSEvaluator(COCOEvaluator):
 
                 # model inference
                 outputs = model(inputs)
+
                 if torch.cuda.is_available():
                     torch.cuda.synchronize()
                 total_compute_time += time.perf_counter() - start_compute_time
@@ -138,7 +139,8 @@ class FSEvaluator(COCOEvaluator):
             )
         )
 
-        results = self.evaluate(cat_ids=self.selected_classes)
+        img_ids = data_loader.sampler.selected_indices.int().tolist()
+        results = self.evaluate(cat_ids=self.selected_classes, img_ids=img_ids)
 
         # # Run separately evaluation on each class 
         # if not validation:
@@ -237,6 +239,7 @@ class FSEvaluator(COCOEvaluator):
                     kpt_oks_sigmas=self._kpt_oks_sigmas,
                     use_fast_impl=self._use_fast_impl,
                     img_ids=img_ids,
+                    # img_ids=[1537,1030,521,522,1553,1027,1543,21,1048,546,1025,389,1657,24,152],
                     cat_ids=cat_ids,
                     max_dets_per_image=self._max_dets_per_image,
                 )

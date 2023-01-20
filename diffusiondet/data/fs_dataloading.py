@@ -55,7 +55,11 @@ class ClassSampler(Sampler):
             keep = torch.randperm(len(table[class_id]))[self.slice]
             selected_indices = selected_indices + [table[class_id][k] for k in keep]
         selected_indices = torch.Tensor(selected_indices)
+        if not self.is_train:
+            selected_indices = torch.unique(selected_indices) 
+            # important to prevent box redundancy and low performance 
         # Retrieve indices inside dataset from img ids
+        self.selected_indices = selected_indices
         if self.shuffle:
             shuffle = torch.randperm(selected_indices.shape[0])
             yield from selected_indices[shuffle].long().tolist()
@@ -64,19 +68,22 @@ class ClassSampler(Sampler):
 
     def __len__(self):
         length = 0
+        all_indices = []
         for c in self.selected_classes:
             if isinstance(c, torch.Tensor):
-                cls = int(c.item())
+                c = int(c.item())
             else:
-                cls = int(c)
+                c = int(c)
             table = self.class_table
-            if self.n_query is not None:
+            all_indices = all_indices + table[c]
+            if self.n_query is not None and self.n_query > 0:
                 length += min(
                     self.n_query,
-                    len(table[cls]))
+                    len(table[c]))
             else:
-                length += len(table[cls])
-
+                length += len(table[c])
+        if not self.is_train:
+            length = torch.tensor(all_indices).unique().shape[0]
         return length
 
 
@@ -148,6 +155,10 @@ class FilteredDataLoader():
                     sampler=sampler)
             self.keep_annotations_from_classes = mapper.selected_classes
             self.draw_images_from_classes = sampler.selected_classes
+
+            self.dataloader.batch_size = min(len(self.dataloader.dataset),
+                                        self.dataloader.batch_size)
+
         else:
             self.sampler = InferenceSampler(len(dataset))
             batch_size = 1
@@ -170,6 +181,7 @@ class FilteredDataLoader():
                                 num_workers=cfg.DATALOADER.NUM_WORKERS,
                                 collate_fn=trivial_batch_collator,
                             )
+            
         
         
     
