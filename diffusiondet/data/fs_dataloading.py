@@ -161,16 +161,6 @@ class FilteredDataLoader():
 
         else:
             self.sampler = InferenceSampler(len(dataset))
-<<<<<<< Updated upstream
-            self.dataloader = build_detection_test_loader(
-                    mapper=mapper,
-                    dataset=dataset,
-                    sampler=sampler,
-                    num_workers=cfg.DATALOADER.NUM_WORKERS,)
-        
-        self.dataloader.batch_size = min(len(self.dataloader.dataset),
-                                            self.dataloader.batch_size)
-=======
             batch_size = 1
             if forced_bs is not None:
                 batch_size = forced_bs
@@ -192,7 +182,7 @@ class FilteredDataLoader():
                                 collate_fn=trivial_batch_collator,
                             )
             
->>>>>>> Stashed changes
+        
         
     
     def __iter__(self):
@@ -322,3 +312,4 @@ class SupportMapDataset(data.Dataset):
         cur_idx = idx
         data = self._map_func(self._dataset[cur_idx])
         return data
+            
