@@ -6,10 +6,11 @@ MODEL:
     STRIDE_IN_1X1: False
   DiffusionDet:
     NUM_PROPOSALS: 500
-    NUM_CLASSES: 80
+    NUM_CLASSES: 20
 DATASETS:
-  TRAIN: ("coco_2017_train",)
-  TEST:  ("coco_2017_val",)
+  TRAIN: ("PASCAL_train2017",)
+  VAL: ("PASCAL_val2017",)
+  TEST:  ("PASCAL_test2017",)
 SOLVER:
   STEPS: (350000, 420000)
   MAX_ITER: 450000
