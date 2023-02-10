@@ -1,4 +1,4 @@
-_BASE_: "Base-DiffusionDet.yaml"
+_BASE_: "../Base-DiffusionDet.yaml"
 MODEL:
   WEIGHTS: "models/swin_base_patch4_window7_224_22k.pkl"
   BACKBONE:
