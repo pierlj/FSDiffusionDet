@@ -13,9 +13,9 @@ import torch.nn.functional as F
 from torch import nn
 from fvcore.nn import sigmoid_focal_loss_jit
 import torchvision.ops as ops
-from .util import box_ops
-from .util.misc import get_world_size, is_dist_avail_and_initialized
-from .util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh, generalized_box_iou
+from ..util import box_ops
+from ..util.misc import get_world_size, is_dist_avail_and_initialized
+from ..util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh, generalized_box_iou
 
 
 class SetCriterionDynamicK(nn.Module):

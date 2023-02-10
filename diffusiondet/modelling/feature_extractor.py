@@ -1,4 +1,5 @@
 import copy
+import logging
 
 import torch
 import torch.nn.functional as F
@@ -13,8 +14,8 @@ from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.structures import Boxes, ImageList, Instances
 
 
-from .data.fs_dataloading import *
-from .data.utils import filter_class_table
+from ..data.fs_dataloading import *
+from ..data.utils import filter_class_table
 
 
 class SupportExtractor(nn.Module):
@@ -25,6 +26,8 @@ class SupportExtractor(nn.Module):
         mode can take values 'identical', 'build_resnet_fpn_backbone', 'build_swintransformer_fpn_backbone'
         """
         super().__init__(*args, **kwargs)
+
+        self.logger = logging.getLogger(__name__)
 
         if 'resnet' in mode:
             cfg = cfg.clone()
@@ -62,6 +65,7 @@ class SupportExtractor(nn.Module):
         
 
     def __call__(self, selected_classes, dataset, dataset_metadata):
+        self.logger.info('Compute support features for classes: {}'.format(selected_classes))
         support_features_dict = {c:[] for c in selected_classes}
         dataloader = self.get_dataloader(selected_classes, dataset, dataset_metadata)
         with torch.no_grad():
@@ -75,7 +79,7 @@ class SupportExtractor(nn.Module):
                 del support_features
 
                 for idx_batch in range(len(data)):
-                    print(data[idx_batch]['class_sampled'], data[idx_batch]['image_id'], data[idx_batch]['instances'].gt_boxes)
+                    # print(data[idx_batch]['class_sampled'], data[idx_batch]['image_id'], data[idx_batch]['instances'].gt_boxes)
                     support_features_dict[data[idx_batch]['class_sampled']].append(pooled_support_features[idx_batch])
 
             for class_idx, class_features in support_features_dict.items():
@@ -88,7 +92,7 @@ class SupportExtractor(nn.Module):
             #             feat_list.append(support_features_dict[class_idx][feat_idx][feat_name])
             #         class_dict[feat_name] = torch.cat(feat_list)
             #     support_features_dict[class_idx] = class_dict
-        return support_features_dict
+        return support_features_dict, (dataset_metadata.base_classes, dataset_metadata.novel_classes)
     
 
     def get_dataloader(self, selected_classes, dataset, dataset_metadata, remap_labels=False):
@@ -107,7 +111,8 @@ class SupportExtractor(nn.Module):
                             self.cfg.FEWSHOT.BASE_SUPPORT,
                             self.cfg, 
                             is_train=False, 
-                            remap_labels=remap_labels)
+                            remap_labels=remap_labels,
+                            log=False)
         
         dataset = SupportDataset(dataset)
 

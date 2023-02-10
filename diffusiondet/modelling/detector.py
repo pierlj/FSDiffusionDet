@@ -7,6 +7,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 import math
 import random
+import weakref
 from typing import List
 from collections import namedtuple
 
@@ -20,9 +21,9 @@ from detectron2.modeling import META_ARCH_REGISTRY, build_backbone, detector_pos
 from detectron2.structures import Boxes, ImageList, Instances
 
 from .loss import SetCriterionDynamicK, HungarianMatcherDynamicK
-from .head import DynamicHead
-from .util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh
-from .util.misc import nested_tensor_from_tensor_list
+from .head import DynamicHead, FSDynamicHead
+from ..util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh
+from ..util.misc import nested_tensor_from_tensor_list
 
 __all__ = ["DiffusionDet"]
 
@@ -71,7 +72,7 @@ class DiffusionDet(nn.Module):
         self.device = torch.device(cfg.MODEL.DEVICE)
 
         self.in_features = cfg.MODEL.ROI_HEADS.IN_FEATURES
-        self.num_classes = cfg.MODEL.DiffusionDet.NUM_CLASSES
+        # self.num_classes = cfg.MODEL.DiffusionDet.NUM_CLASSES
         self.num_proposals = cfg.MODEL.DiffusionDet.NUM_PROPOSALS
         self.hidden_dim = cfg.MODEL.DiffusionDet.HIDDEN_DIM
         self.num_heads = cfg.MODEL.DiffusionDet.NUM_HEADS
@@ -128,7 +129,10 @@ class DiffusionDet(nn.Module):
                              (1. - alphas_cumprod_prev) * torch.sqrt(alphas) / (1. - alphas_cumprod))
 
         # Build Dynamic Head.
-        self.head = DynamicHead(cfg=cfg, roi_input_shape=self.backbone.output_shape())
+        if cfg.TRAIN_MODE == 'support_attention':
+            self.head = FSDynamicHead(cfg=cfg, roi_input_shape=self.backbone.output_shape(), model_ref=weakref.ref(self))
+        else:
+            self.head = DynamicHead(cfg=cfg, roi_input_shape=self.backbone.output_shape())
         # Loss parameters:
         class_weight = cfg.MODEL.DiffusionDet.CLASS_WEIGHT
         giou_weight = cfg.MODEL.DiffusionDet.GIOU_WEIGHT
@@ -512,3 +516,7 @@ class DiffusionDet(nn.Module):
         images_whwh = torch.stack(images_whwh)
 
         return images, images_whwh
+
+    @property
+    def num_classes(self):
+        return self.cfg.MODEL.DiffusionDet.NUM_CLASSES

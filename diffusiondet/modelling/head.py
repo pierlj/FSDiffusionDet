@@ -70,7 +70,7 @@ class Dense(nn.Module):
 
 class DynamicHead(nn.Module):
 
-    def __init__(self, cfg, roi_input_shape):
+    def __init__(self, cfg, roi_input_shape, head_class=None):
         super().__init__()
 
         # Build RoI.
@@ -85,7 +85,14 @@ class DynamicHead(nn.Module):
         dropout = cfg.MODEL.DiffusionDet.DROPOUT
         activation = cfg.MODEL.DiffusionDet.ACTIVATION
         num_heads = cfg.MODEL.DiffusionDet.NUM_HEADS
-        rcnn_head = RCNNHead(cfg, d_model, num_classes, dim_feedforward, nhead, dropout, activation)
+
+        if cfg.TRAIN_MODE == 'support_attention':
+            model_ref = self.model_ref
+            rcnn_head = FSRCNNHead(cfg, d_model, num_classes, dim_feedforward, nhead, dropout, activation, model_ref=model_ref)
+        else:
+            model_ref = None
+            rcnn_head = RCNNHead(cfg, d_model, num_classes, dim_feedforward, nhead, dropout, activation)
+
         self.head_series = _get_clones(rcnn_head, num_heads)
         self.num_heads = num_heads
         self.return_intermediate = cfg.MODEL.DiffusionDet.DEEP_SUPERVISION
@@ -180,6 +187,7 @@ class RCNNHead(nn.Module):
         super().__init__()
 
         self.d_model = d_model
+        self.cfg = cfg
 
         # dynamic.
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
@@ -374,6 +382,104 @@ class DynamicConv(nn.Module):
         return features
 
 
+class ClassDynamicConv(nn.Module):
+
+    def __init__(self, cfg):
+        super().__init__()
+
+        self.hidden_dim = cfg.MODEL.DiffusionDet.HIDDEN_DIM
+        self.dim_dynamic = cfg.MODEL.DiffusionDet.DIM_DYNAMIC
+        self.num_dynamic = cfg.MODEL.DiffusionDet.NUM_DYNAMIC
+        self.num_params = self.hidden_dim * self.dim_dynamic
+        self.dynamic_layer = nn.Linear(self.hidden_dim, self.num_dynamic * self.num_params)
+
+        self.norm1 = nn.LayerNorm(self.dim_dynamic)
+        self.norm2 = nn.LayerNorm(self.hidden_dim)
+
+        self.activation = nn.ReLU(inplace=True)
+
+        pooler_resolution = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
+        num_output = self.hidden_dim * pooler_resolution ** 2
+        self.out_layer = nn.Linear(num_output, self.hidden_dim)
+        self.norm3 = nn.LayerNorm(self.hidden_dim)
+
+    def forward(self, pro_features, class_roi_features):
+        '''
+        pro_features: (1,  N * nr_boxes, self.d_model)
+        roi_features: (N_classes, 49, N * nr_boxes, self.d_model)
+        '''
+        features = class_roi_features#.permute(1, 0, 2)
+        parameters = self.dynamic_layer(pro_features).permute(1, 0, 2)
+
+        param1 = parameters[:, :, :self.num_params].view(-1, self.hidden_dim, self.dim_dynamic)
+        param2 = parameters[:, :, self.num_params:].view(-1, self.dim_dynamic, self.hidden_dim)
+
+        features = torch.einsum('ijkl,klm->ijkm', features, param1)
+        # features = torch.bmm(features, param1)
+        features = self.norm1(features)
+        features = self.activation(features)
+
+        features = torch.einsum('ijkl,klm->ijkm', features, param2)
+        # features = torch.bmm(features, param2)
+        features = self.norm2(features)
+        features = self.activation(features)
+
+        features = features.permute(0,2,1,3)
+        features = features.flatten(2)
+
+        features = self.out_layer(features)
+        features = self.norm3(features)
+        features = self.activation(features)
+
+        return features
+
+
+class SupportDynamicConv(nn.Module):
+
+    def __init__(self, cfg, support_interact=True):
+        super().__init__()
+
+        self.hidden_dim = cfg.MODEL.DiffusionDet.HIDDEN_DIM
+        self.dim_dynamic = cfg.MODEL.DiffusionDet.DIM_DYNAMIC
+        self.num_dynamic = cfg.MODEL.DiffusionDet.NUM_DYNAMIC
+        self.num_params = self.hidden_dim * self.dim_dynamic
+        self.dynamic_layer = nn.Linear(self.hidden_dim, self.num_dynamic * self.num_params)
+
+        self.norm1 = nn.LayerNorm(self.dim_dynamic)
+        self.norm2 = nn.LayerNorm(self.hidden_dim)
+
+        self.activation = nn.ReLU(inplace=True)
+
+        # pooler_resolution = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
+        # num_output = self.hidden_dim * pooler_resolution ** 2
+        # self.out_layer = nn.Linear(num_output, self.hidden_dim)
+        # self.norm3 = nn.LayerNorm(self.hidden_dim)
+
+    def forward(self, support_features, roi_features):
+        '''
+        support_features: (C, 49, 1, self.d_model)
+        roi_features: (49, N * nr_boxes, self.d_model)
+        '''
+        features = roi_features.unsqueeze(0)
+        C, pooler_res, _, _ = support_features.shape
+        parameters = self.dynamic_layer(support_features)#.permute(0, 2, 1, 3)
+
+        param1 = parameters[..., :self.num_params].view(C, pooler_res, 1, self.hidden_dim, self.dim_dynamic)
+        param2 = parameters[..., self.num_params:].view(C, pooler_res, 1, self.dim_dynamic, self.hidden_dim)
+
+        features = torch.einsum('rjtl,ijklm->ijtm', features, param1)
+        # features = torch.bmm(features, param1)
+        features = self.norm1(features)
+        features = self.activation(features)
+
+        features = torch.einsum('rjtl,ijklm->ijtm', features, param2)
+        # features = torch.bmm(features, param2)
+        features = self.norm2(features)
+        features = self.activation(features)
+
+        return features
+
+
 def _get_clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
 
@@ -387,3 +493,104 @@ def _get_activation_fn(activation):
     if activation == "glu":
         return F.glu
     raise RuntimeError(F"activation should be relu/gelu, not {activation}.")
+
+
+
+class FSDynamicHead(DynamicHead):
+
+    def __init__(self, *args, model_ref=None, **kwargs):
+        self.model_ref = model_ref
+        super().__init__(*args, **kwargs)
+        
+      
+
+class FSRCNNHead(RCNNHead):
+
+    def __init__(self, cfg, d_model, num_classes, *args, model_ref=None, **kwargs):
+        super().__init__(cfg, d_model, 1, *args, **kwargs) # only 1 class as prediction are done separately
+
+        self.model_ref = model_ref
+        self.num_classes = num_classes
+
+        self.support_attention = SupportDynamicConv(cfg)
+        self.inst_interact = ClassDynamicConv(cfg)
+
+
+    def forward(self, features, bboxes, pro_features, pooler, time_emb):
+        """
+        :param bboxes: (N, nr_boxes, 4)
+        :param pro_features: (N, nr_boxes, d_model)
+        """
+
+        N, nr_boxes = bboxes.shape[:2]
+        
+        # roi_feature.
+        proposal_boxes = list()
+        for b in range(N):
+            proposal_boxes.append(Boxes(bboxes[b]))
+        roi_features = pooler(features, proposal_boxes)
+
+        if pro_features is None:
+            pro_features = roi_features.view(N, nr_boxes, self.d_model, -1).mean(-1)
+
+        roi_features = roi_features.view(N * nr_boxes, self.d_model, -1).permute(2, 0, 1)
+
+        # self_att.
+        pro_features = pro_features.view(N, nr_boxes, self.d_model).permute(1, 0, 2)
+        pro_features2 = self.self_attn(pro_features, pro_features, value=pro_features)[0]
+        pro_features = pro_features + self.dropout1(pro_features2)
+        pro_features = self.norm1(pro_features)
+        pooler_resolution = self.cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION ** 2
+
+        # support attention
+        support_features = self.model_ref()._support_features
+        if self.training:
+            iteration_classes = self.model_ref().iteration_classes
+        else:
+            iteration_classes = self.model_ref().selected_classes
+
+
+        n_classes = len(iteration_classes)
+        support_features = torch.stack([feat.mean(dim=0, keepdim=True).view(1, self.d_model, pooler_resolution).permute(2,0,1) 
+                                            for c, feat in support_features.items()
+                                            if c in iteration_classes])
+        class_specific_features = self.support_attention(support_features, roi_features)
+
+
+        # inst_interact.
+        pro_features = pro_features.view(nr_boxes, N, self.d_model).permute(1, 0, 2).reshape(1, N * nr_boxes, self.d_model)
+        pro_features2 = self.inst_interact(pro_features, class_specific_features)
+        pro_features = pro_features + self.dropout2(pro_features2)
+        obj_features = self.norm2(pro_features)
+
+        # obj_feature.
+        obj_features2 = self.linear2(self.dropout(self.activation(self.linear1(obj_features))))
+        obj_features = obj_features + self.dropout3(obj_features2)
+        obj_features = self.norm3(obj_features)
+
+        fc_feature = obj_features.permute(0, 2, 1).reshape(n_classes, N * nr_boxes, -1)
+
+        scale_shift = self.block_time_mlp(time_emb)
+        scale_shift = torch.repeat_interleave(scale_shift, nr_boxes, dim=0)
+        scale, shift = scale_shift.chunk(2, dim=1)
+        fc_feature = fc_feature * (scale + 1) + shift
+
+        cls_feature = fc_feature.clone()
+        reg_feature = fc_feature.clone()
+        for cls_layer in self.cls_module:
+            cls_feature = cls_layer(cls_feature)
+        for reg_layer in self.reg_module:
+            reg_feature = reg_layer(reg_feature)
+        class_logits = self.class_logits(cls_feature)
+        bboxes_deltas = self.bboxes_delta(reg_feature)
+        # bboxes_deltas = bboxes_deltas[class_logits.argmax(dim=0).detach()]
+
+        classes_labels = class_logits.argmax(dim=0).detach().view(class_logits.shape[1], 1, 1)
+        bboxes_deltas = torch.gather(bboxes_deltas.permute(1,0,2), 1, 
+                            classes_labels.repeat(1,1,4))[:,0]
+        pred_bboxes = self.apply_deltas(bboxes_deltas, bboxes.view(-1, 4))
+
+        obj_features = torch.gather(obj_features.permute(1,0,2), 1, 
+                            classes_labels.repeat(1,1,256))[:,0]
+        
+        return class_logits.view(n_classes, N, nr_boxes).permute(1,2,0), pred_bboxes.view(N, nr_boxes, -1), obj_features
