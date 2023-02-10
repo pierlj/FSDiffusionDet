@@ -7,7 +7,7 @@ MODEL:
     STRIDE_IN_1X1: False
   DiffusionDet:
     NUM_PROPOSALS: 200
-    NUM_CLASSES: 16
+    NUM_CLASSES: 80
 DATASETS:
   TRAIN: ("COCO_train2017",)
   VAL: ("COCO_val2017",)
@@ -21,6 +21,10 @@ INPUT:
   CROP:
     ENABLED: True
   FORMAT: "RGB"
+  MIN_SIZE_TRAIN: (512,)
+  MAX_SIZE_TRAIN: 512
+  MIN_SIZE_TEST: 512
+  MAX_SIZE_TEST: 512
 # TRAIN_MODE: 'support_attention'
 TRAIN_MODE: 'simplefs'
 FINETUNE:
