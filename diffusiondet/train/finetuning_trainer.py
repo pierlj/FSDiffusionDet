@@ -29,7 +29,7 @@ from ..data.task_sampling import TaskSampler
 from ..eval.fs_evaluator import FSEvaluator
 from ..eval.hooks import FSValidationHook, FSTestHook
 from ..train.hooks import SupportExtractionHook
-from ..data.utils import filter_class_table
+from ..data.utils import filter_class_table, filter_instances
 
 
 class FineTuningTrainer(DiffusionTrainer):
@@ -80,7 +80,7 @@ class FineTuningTrainer(DiffusionTrainer):
 
     
         self.register_hooks(self.build_hooks())
-
+        
     def launch_training(self):
         
         if self.iter < self.cfg.SOLVER.MAX_ITER:
@@ -100,14 +100,17 @@ class FineTuningTrainer(DiffusionTrainer):
         # self._trainer.train(self.iter, self.cfg.FINETUNE.MAX_ITER)
         # TrainerBase.train(self, self.iter, self.cfg.FINETUNE.MAX_ITER)
         self.train()
-        
 
     def run_step(self):
         assert self.model.training, "[SimpleTrainer] model was changed to eval mode!"
         start = time.perf_counter()
 
         data = next(iter(self.data_loader))
+        if self.cfg.TRAIN_MODE == 'support_attention':
+            data = self.select_iteration_classes(data)
         data_time = time.perf_counter() - start
+
+        
        
         loss_dict = self.model(data)
         if isinstance(loss_dict, torch.Tensor):
@@ -140,10 +143,12 @@ class FineTuningTrainer(DiffusionTrainer):
         # update allowed classes
         if self.cfg.FINETUNE.NOVEL_ONLY:
             selected_classes = self.task_sampler.c_test
-            self.replace_classification_layer()
+            if self.cfg.TRAIN_MODE == 'simplefs':
+                self.replace_classification_layer(self.model, self.cfg)
+                self.model._num_classes = len(selected_classes)
             self.model.criterion.num_classes = len(selected_classes)
             self.model.selected_classes = selected_classes
-            self.model.num_classes = len(selected_classes)
+            
             self.model.head.num_classes = len(selected_classes)
             for head in self.model.head.head_series:
                 head.num_classes = len(selected_classes)
@@ -155,7 +160,8 @@ class FineTuningTrainer(DiffusionTrainer):
                                             remap_labels=self.cfg.FINETUNE.NOVEL_ONLY)
         
         # Update cfg params 
-        self.cfg.merge_from_list(['SOLVER.MAX_ITER', self.cfg.FINETUNE.MAX_ITER])
+        self.cfg.merge_from_list(['SOLVER.MAX_ITER', self.cfg.FINETUNE.MAX_ITER,
+                                    'TEST.EVAL_PERIOD', 10])
         self.scheduler = self.build_lr_scheduler(self.cfg, self.optimizer)
 
         # when restarting finetuning iter should be incremented from value in checkpoint
@@ -166,6 +172,21 @@ class FineTuningTrainer(DiffusionTrainer):
         self._hooks = []
         self.is_finetuning = True
         self.register_hooks(self.build_hooks()) 
+
+        if self.cfg.TRAIN_MODE == 'support_attention':
+            self.model.compute_support_features(self.task_sampler.classes, self.dataset, self.dataset_metadata)
+    
+    @classmethod
+    def build_model(cls, cfg, is_finetuned=False):
+        model = super().build_model(cfg)
+        if is_finetuned:
+            cls.replace_classification_layer(cls, model, cfg)
+            n_base_classes = cfg.FEWSHOT.N_WAYS_TEST
+            model._num_classes = n_base_classes
+            model.head.num_classes = n_base_classes
+            for head in model.head.head_series:
+                head.num_classes = n_base_classes
+        return model
 
     def build_dataset(self, cfg):
         self.dataset, self.dataset_metadata = get_datasets(cfg.DATASETS.TRAIN, cfg)
@@ -186,10 +207,8 @@ class FineTuningTrainer(DiffusionTrainer):
         return dataloader
     
     @classmethod
-    def build_test_loader(cls, trainer, cfg, selected_classes, validation=True):
-        dataset, dataset_metadata = get_datasets(cfg.DATASETS.VAL 
-                                                    if validation else cfg.DATASETS.TEST, 
-                                                cfg)
+    def build_test_loader(cls, trainer, cfg, selected_classes, dataset_name):
+        dataset, dataset_metadata = get_datasets(dataset_name, cfg)
         sampler = ClassSampler(cfg, dataset_metadata, selected_classes, n_query=-1, is_train=False)
         
         mapper = DatasetMapper(cfg, False)
@@ -248,16 +267,35 @@ class FineTuningTrainer(DiffusionTrainer):
 
         def test_and_save_results(validation=True, is_finetuning=False):
             output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
-            dataset_name = cfg.DATASETS.VAL[0] if validation else cfg.DATASETS.TEST[0]
+            dataset_name = cfg.DATASETS.VAL if validation else cfg.DATASETS.TEST
+
+            metric_save_path = None
+            if not validation:
+                metric_save_path = os.path.join(cfg.OUTPUT_DIR, 'novel_classes_metrics.json' if is_finetuning else \
+                                                                'base_classes_metrics.json')
             if cfg.FINETUNE.NOVEL_ONLY and is_finetuning:
                 evaluators = [
-                    FSEvaluator(self.task_sampler.c_test, dataset_name, cfg, True, output_folder, name='Novel classes evaluation'),
+                    FSEvaluator(self.task_sampler.c_test, dataset_name[0], cfg, True, output_folder, 
+                                                        name='Novel classes evaluation', 
+                                                        metric_save_path=metric_save_path),
                 ]
             else:
                 evaluators = [
-                    FSEvaluator(self.task_sampler.c_train, dataset_name, cfg, True, output_folder, name='Base classes evaluation'),
+                    FSEvaluator(self.task_sampler.c_train, dataset_name[0], cfg, True, output_folder, 
+                                                        name='Base classes evaluation', 
+                                                        metric_save_path=metric_save_path),
                     # FSEvaluator(self.task_sampler.c_test, dataset_name, cfg, True, output_folder, name='Novel classes evaluation')
                 ]
+
+
+            if is_finetuning:
+                self.model.selected_classes = self.dataset_metadata.novel_classes
+            elif self.cfg.TRAIN_MODE == 'support_attention': 
+                self.model.selected_classes = self.dataset_metadata.base_classes
+
+            if self.cfg.TRAIN_MODE == 'support_attention':
+                extract_support_features(source='val' if validation else '')
+            
             self._last_eval_results = self.eval(self, self.cfg, self.model, evaluators, validation=validation)
             return self._last_eval_results
 
@@ -267,10 +305,10 @@ class FineTuningTrainer(DiffusionTrainer):
                 self.model.compute_support_features(self.task_sampler.classes, self.dataset, self.dataset_metadata)
             elif source == 'val':
                 dataset, metadata = get_datasets(cfg.DATASETS.VAL[0], self.cfg)
-                self.model.compute_support_features(self.task_sampler.classes, dataset, metadata)
+                self.model.compute_support_features(self.task_sampler.classes, self.dataset, self.dataset_metadata)
             else:
                 dataset, metadata = get_datasets(cfg.DATASETS.TEST[0], self.cfg)
-                self.model.compute_support_features(self.task_sampler.classes, dataset, metadata)
+                self.model.compute_support_features(self.task_sampler.classes, self.dataset, self.dataset_metadata)
             
         if self.cfg.TRAIN_MODE == 'support_attention':
             ret.append(SupportExtractionHook(self.cfg,
@@ -281,7 +319,7 @@ class FineTuningTrainer(DiffusionTrainer):
         ret.append(FSValidationHook(cfg.TEST.EVAL_PERIOD, 
                                 lambda: test_and_save_results(is_finetuning=self.is_finetuning)))
         ret.append(FSTestHook(cfg.TEST.EVAL_PERIOD, 
-                                lambda: test_and_save_results(validation=True, 
+                                lambda: test_and_save_results(validation=False, 
                                                                 is_finetuning=self.is_finetuning)))
 
         # def test_and_save_Results():
@@ -322,9 +360,13 @@ class FineTuningTrainer(DiffusionTrainer):
         results = OrderedDict()
         for idx, evaluator in enumerate(evaluators):
             # eval/validate only on one dataset at a time in FS mode 
-            dataset_name = cfg.DATASETS.VAL[0] if validation else cfg.DATASETS.TEST[0]
+            if hasattr(evaluator, 'dataset_name'):
+                dataset_name = evaluator.dataset_name
+            else:
+                dataset_name = cfg.DATASETS.VAL[0] if validation else cfg.DATASETS.TEST[0]
+
             evaluator_name = evaluator.name
-            dataloader = cls.build_test_loader(trainer, cfg, evaluator.selected_classes, validation=validation)
+            dataloader = cls.build_test_loader(trainer, cfg, evaluator.selected_classes, [dataset_name])
             results_i = evaluator.inference_on_dataset(model, dataloader, validation=validation)
             results[evaluator_name] = results_i
             if comm.is_main_process():
@@ -368,10 +410,11 @@ class FineTuningTrainer(DiffusionTrainer):
                 for param in self.model.head.time_mlp.parameters():
                     param.requires_grad = False
     
-    def replace_classification_layer(self):
-        for module in self.model.head.head_series:
+    def replace_classification_layer(self, model, cfg):
+        
+        for module in model.head.head_series:
             in_features = module.class_logits.in_features
-            n_classes = self.cfg.FEWSHOT.N_WAYS_TEST
+            n_classes = cfg.FEWSHOT.N_WAYS_TEST
             module.class_logits = torch.nn.Linear(in_features, 
                                     n_classes, 
                                     device=module.class_logits.weight.device,
@@ -388,7 +431,26 @@ class FineTuningTrainer(DiffusionTrainer):
 
         if not resume:
             self.model.build_support_extractor()
+    
+    def select_iteration_classes(self, data):
+        classes_in_batch, counts = torch.cat([d['instances'].gt_classes for d in data]).unique(return_counts=True)
+        # probabilities = counts.float().softmax(dim=0)
+        probabilities = torch.ones_like(classes_in_batch).float()
+        num_classes = min(self.cfg.FEWSHOT.ATTENTION.MAX_NUM_CLASSES, classes_in_batch.shape[0])
+        iteration_classes = classes_in_batch[torch.multinomial(probabilities, num_classes).sort()[0]]
 
+        self.model.iteration_classes = iteration_classes
+
+        for d in data:
+            labels = d['instances'].gt_classes
+            keep = torch.where(labels.unsqueeze(-1) == iteration_classes.unsqueeze(0))[0]
+            d['instances'] = filter_instances(d['instances'], keep)
+            # instances.get_fields()['gt_classes']
+            labels = torch.where(iteration_classes[None] == labels[:,None])[1]
+            d['instances'].set('gt_classes', labels)
+        
+        self.model.criterion.num_classes = num_classes
+        return data
         
 
 

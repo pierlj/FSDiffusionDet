@@ -87,6 +87,7 @@ def add_fs_config(cfg):
 
     cfg.FEWSHOT.ATTENTION = CN()
     cfg.FEWSHOT.ATTENTION.EXTRACT_EVERY = 1
+    cfg.FEWSHOT.ATTENTION.MAX_NUM_CLASSES = 5
 
     cfg.FEWSHOT.SUPPORT_EXTRACTOR = CN()
     cfg.FEWSHOT.SUPPORT_EXTRACTOR.WEIGHT = "detectron2://ImageNetPretrained/torchvision/R-50.pkl"

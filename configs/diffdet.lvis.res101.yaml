@@ -1,4 +1,4 @@
-_BASE_: "Base-DiffusionDet.yaml"
+_BASE_: "../Base-DiffusionDet.yaml"
 MODEL:
   WEIGHTS: "models/torchvision-R-101.pkl"
   RESNETS:

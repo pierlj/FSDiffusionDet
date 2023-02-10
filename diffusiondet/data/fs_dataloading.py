@@ -7,7 +7,6 @@ import torch.utils.data as data
 import logging
 
 
-from detectron2.structures import Instances
 from detectron2.data import build_detection_train_loader, build_detection_test_loader
 from detectron2.data.samplers import InferenceSampler
 from detectron2.data.build import trivial_batch_collator
@@ -16,7 +15,7 @@ from detectron2.utils.serialize import PicklableWrapper
 import detectron2.data.transforms as T
 
 from .dataset_mapper import DiffusionDetDatasetMapper
-from .utils import filter_class_table
+from .utils import filter_class_table, filter_instances
 
 
 class ClassSampler(Sampler):
@@ -124,14 +123,6 @@ class SupportClassSampler(ClassSampler):
         else:
             yield from selected_indices.long().tolist()
 
-
-
-def filter_instances(instances, keep):
-    fields = instances.get_fields()
-    new_instances = Instances(instances.image_size,
-                            **{k: v[keep] for k,v in fields.items()})
-    # new_instances.old_instances = instances
-    return new_instances
      
 
 class FilteredDataLoader():

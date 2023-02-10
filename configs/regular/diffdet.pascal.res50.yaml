@@ -1,0 +1,30 @@
+_BASE_: "../Base-DiffusionDet.yaml"
+MODEL:
+  META_ARCHITECTURE: 'FSDiffusionDet'
+  WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
+  RESNETS:
+    DEPTH: 50
+    STRIDE_IN_1X1: False
+  DiffusionDet:
+    NUM_PROPOSALS: 500
+    NUM_CLASSES: 20
+DATASETS:
+  TRAIN: ("PASCAL_train2017",)
+  VAL: ("PASCAL_val2017",)
+  TEST:  ("PASCAL_test2017",)
+SOLVER:
+  STEPS: (350000, 420000)
+  MAX_ITER: 450000
+INPUT:
+  CROP:
+    ENABLED: True
+  FORMAT: "RGB"
+  MIN_SIZE_TRAIN: (512,)
+  MAX_SIZE_TRAIN: 512
+  MIN_SIZE_TEST: 512
+  MAX_SIZE_TEST: 512
+TRAIN_MODE: 'regular'
+FINETUNE:
+  MAX_ITER: 130000
+TEST:
+  EVAL_PERIOD: 500

@@ -59,7 +59,7 @@ class DiffusionDetDatasetMapper:
     4. Prepare image and annotation to Tensors
     """
 
-    def __init__(self, cfg, is_train=True):
+    def __init__(self, cfg, is_train=True, log=True):
         if cfg.INPUT.CROP.ENABLED and is_train:
             self.crop_gen = [
                 T.ResizeShortestEdge([400, 500, 600], sample_style="choice"),
@@ -69,9 +69,10 @@ class DiffusionDetDatasetMapper:
             self.crop_gen = None
 
         self.tfm_gens = build_transform_gen(cfg, is_train)
-        logging.getLogger(__name__).info(
-            "Full TransformGens used in training: {}, crop: {}".format(str(self.tfm_gens), str(self.crop_gen))
-        )
+        if log:
+            logging.getLogger(__name__).info(
+                "Full TransformGens used in training: {}, crop: {}".format(str(self.tfm_gens), str(self.crop_gen))
+            )
 
         self.img_format = cfg.INPUT.FORMAT
         self.is_train = is_train

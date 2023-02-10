@@ -11,6 +11,8 @@ from typing import List, Union
 import torch
 from torch import nn
 import numpy as np
+from tabulate import tabulate
+
 
 from pycocotools.coco import COCO
 from pycocosiou.cocoeval import COCOeval
@@ -18,8 +20,9 @@ from pycocosiou.cocoeval import COCOeval
 import detectron2.utils.comm as comm
 from detectron2.evaluation import inference_context
 from detectron2.utils.comm import get_world_size, is_main_process
-from detectron2.utils.logger import log_every_n_seconds
+from detectron2.utils.logger import log_every_n_seconds, create_small_table
 from detectron2.utils.file_io import PathManager
+
 
 
 from ..eval.coco_evaluation import COCOEvaluator
@@ -31,10 +34,12 @@ except ImportError:
 
 
 class FSEvaluator(COCOEvaluator):
-    def __init__(self, selected_classes, *args, name='Base classes eval', **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, selected_classes, dataset_name, *args, name='Base classes eval', metric_save_path=None, **kwargs):
+        super().__init__(dataset_name, *args, **kwargs)
         self.selected_classes = selected_classes
+        self.dataset_name = dataset_name
         self.name = name
+        self.metric_save_path = metric_save_path
 
     
     def inference_on_dataset(self, model, data_loader, validation=False):              
@@ -140,7 +145,8 @@ class FSEvaluator(COCOEvaluator):
         )
 
         img_ids = data_loader.sampler.selected_indices.int().tolist()
-        results = self.evaluate(cat_ids=self.selected_classes, img_ids=img_ids)
+        # results = self.evaluate(cat_ids=self.selected_classes, img_ids=img_ids)
+        results = self.evaluate(cat_ids=self.selected_classes)
 
         # # Run separately evaluation on each class 
         # if not validation:
@@ -323,6 +329,92 @@ class FSEvaluator(COCOEvaluator):
 
         return coco_eval
     
+    def _derive_coco_results(self, coco_eval, iou_type, class_names=None):
+        """
+        Derive the desired score numbers from summarized COCOeval.
+
+        Args:
+            coco_eval (None or COCOEval): None represents no predictions from model.
+            iou_type (str):
+            class_names (None or list[str]): if provided, will use it to predict
+                per-category AP.
+
+        Returns:
+            a dict of {metric name: score}
+        """
+
+        metrics = {
+            "bbox": ["AP", "AP50", "AP75", "APs", "APm", "APl"],
+            "segm": ["AP", "AP50", "AP75", "APs", "APm", "APl"],
+            "keypoints": ["AP", "AP50", "AP75", "APm", "APl"],
+        }[iou_type]
+
+        if coco_eval is None:
+            self._logger.warn("No predictions from the model!")
+            return {metric: float("nan") for metric in metrics}
+
+        # the standard metrics
+        results = {
+            metric: float(coco_eval.stats[idx] * 100 if coco_eval.stats[idx] >= 0 else "nan")
+            for idx, metric in enumerate(metrics)
+        }
+        self._logger.info(
+            "Evaluation results for {}: \n".format(iou_type) + create_small_table(results)
+        )
+        if not np.isfinite(sum(results.values())):
+            self._logger.info("Some metrics cannot be computed and is shown as NaN.")
+
+        if class_names is None or len(class_names) <= 1:
+            return results
+        # Compute per-category AP
+        # from https://github.com/facebookresearch/Detectron/blob/a6a835f5b8208c45d0dce217ce9bbda915f44df7/detectron/datasets/json_dataset_evaluator.py#L222-L252 # noqa
+        precisions = coco_eval.eval["precision"]
+        self.write_results(coco_eval.eval)
+        
+        # precision has dims (iou, recall, cls, area range, max dets)
+        assert len(class_names) == precisions.shape[2]
+
+        results_per_category = []
+        for idx, name in enumerate(class_names):
+            # area range index 0: all area ranges
+            # max dets index -1: typically 100 per image
+            precision = precisions[:, :, idx, 0, -1]
+            precision = precision[precision > -1]
+            ap = np.mean(precision) if precision.size else float("nan")
+            results_per_category.append(("{}".format(name), float(ap * 100)))
+
+        # tabulate it
+        N_COLS = min(6, len(results_per_category) * 2)
+        results_flatten = list(itertools.chain(*results_per_category))
+        results_2d = itertools.zip_longest(*[results_flatten[i::N_COLS] for i in range(N_COLS)])
+        table = tabulate(
+            results_2d,
+            tablefmt="pipe",
+            floatfmt=".3f",
+            headers=["category", "AP"] * (N_COLS // 2),
+            numalign="left",
+        )
+        self._logger.info("Per-category {} AP: \n".format(iou_type) + table)
+
+        results.update({"AP-" + name: ap for name, ap in results_per_category})
+        return results
+
+    def write_results(self, coco_res):
+        if self.metric_save_path is not None:
+            serialized_res = {}
+            for k, v in coco_res.items():
+                if k != 'params':
+                    if isinstance(v, np.ndarray):
+                        serialized_res[k] = v.tolist()
+                    else:
+                        serialized_res[k] = v
+            with open(self.metric_save_path, 'w') as f:
+                json.dump(serialized_res, f)
+
+
+
+
+
 
 
     
