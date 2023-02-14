@@ -3,6 +3,7 @@ import torch
 import weakref
 import time
 import os
+import shutil
 
 from collections import OrderedDict
 
@@ -59,9 +60,18 @@ class FineTuningTrainer(DiffusionTrainer):
             model, data_loader, optimizer
         )
 
-        self.scheduler = self.build_lr_scheduler(cfg, self.optimizer)
+        if cfg.SOLVER.MAX_ITER > 0:
+            self.scheduler = self.build_lr_scheduler(cfg, self.optimizer)
+        else:
+            # finetuning only from a base trained model
+            try:
+                checkpoint_dir = '/'.join(cfg.MODEL.WEIGHTS.split('/')[:-1])
+                shutil.copyfile(os.path.join(checkpoint_dir, 'base_classes_metrics.json'), 
+                                os.path.abspath(os.path.join(cfg.OUTPUT_DIR, 'base_classes_metrics.json')))
+            except:
+                self.logger.warning('Unable to copy base_classes_metrics.json from pretrained model.')
 
-        ########## EMA ############
+        ########## EMA #checkpoint_dir###########
         kwargs = {
             'trainer': weakref.proxy(self),
         }

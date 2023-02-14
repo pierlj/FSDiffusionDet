@@ -98,6 +98,10 @@ def add_additional_config(cfg):
     cfg.DATASETS.VAL = ()
     cfg.TRAIN_MODE = 'regular'
 
-def create_unique_output_path(ouput_dir):
+def create_unique_output_path(ouput_dir, study_folder=None):
     dt_string = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
-    return os.path.join(ouput_dir, dt_string)
+    if study_folder is None:
+        output_dir = os.path.join(ouput_dir, dt_string)
+    else:
+        output_dir = os.path.join(ouput_dir, study_folder, dt_string)
+    return output_dir

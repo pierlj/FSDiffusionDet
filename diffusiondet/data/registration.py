@@ -8,7 +8,7 @@ def create_class_table(dataset, contiguous_mapping):
     class_table = {c:[] for c in classes}
     for idx, img_meta in enumerate(dataset):
         for annot in img_meta['annotations']:
-            class_table[contiguous_mapping[annot['category_id']]].append(idx)
+            class_table[annot['category_id']].append(idx)
     
     for c, indx_list in class_table.items():
         class_table[c] = list(set(indx_list))
@@ -36,7 +36,8 @@ def register_dataset(dataset_dict):
         
         base_c, novel_c = read_split_file(os.path.join(dataset_dict['root_path'], dataset_dict['class_split_file']))
         
-        register_coco_instances(dataset_name, {'base_classes': base_c,
+        if not dataset_name in DatasetCatalog:
+            register_coco_instances(dataset_name, {'base_classes': base_c,
                                               'novel_classes': novel_c}, 
                                 os.path.join(dataset_dict['root_path'], 'annotations', 'instances_{}.json'.format(split)), 
                                 os.path.join(dataset_dict['root_path'], split))
@@ -62,8 +63,9 @@ def get_datasets(datasets, cfg):
         # if min(contiguous_ids) != 1 or max(contiguous_ids) != len(contiguous_ids):
         #     super(Metadata, metadata).__setattr__('thing_dataset_id_to_contiguous_id', 
         #                                                  {dataset_id: idx  for idx, dataset_id in enumerate(contiguous_mapper)})
-            
-        metadata.class_table = create_class_table(dataset,
+        
+        if not hasattr(metadata, 'class_table'):
+            metadata.class_table = create_class_table(dataset,
                                                 metadata.thing_dataset_id_to_contiguous_id)
         
     return dataset, metadata
