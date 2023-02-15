@@ -1,4 +1,5 @@
 import os
+import copy
 
 from detectron2.data.datasets import register_coco_instances
 from detectron2.data import DatasetCatalog, MetadataCatalog, get_detection_dataset_dicts, Metadata
@@ -54,6 +55,7 @@ def get_datasets(datasets, cfg):
     dataset = filter_dataset(dataset, n_objects=cfg.MODEL.DiffusionDet.NUM_PROPOSALS)
     
     metadata = None
+    class_table = None
     # if datasets are concatenated metadata cannot be easily combined
     # TO DO: write function that merge metadata of two datasets
     if len(datasets) == 1:
@@ -63,12 +65,12 @@ def get_datasets(datasets, cfg):
         # if min(contiguous_ids) != 1 or max(contiguous_ids) != len(contiguous_ids):
         #     super(Metadata, metadata).__setattr__('thing_dataset_id_to_contiguous_id', 
         #                                                  {dataset_id: idx  for idx, dataset_id in enumerate(contiguous_mapper)})
-        
-        if not hasattr(metadata, 'class_table'):
-            metadata.class_table = create_class_table(dataset,
-                                                metadata.thing_dataset_id_to_contiguous_id)
-        
+        class_table = create_class_table(dataset,
+                                        metadata.thing_dataset_id_to_contiguous_id)
+    metadata = MetaDataFS(copy.deepcopy(metadata), class_table)    
+    
     return dataset, metadata
+
 
 
 def filter_dataset(dataset, n_objects=200):
@@ -77,3 +79,17 @@ def filter_dataset(dataset, n_objects=200):
         if len(d['annotations']) <= n_objects:
             filtered_dataset.append(d)
     return filtered_dataset
+
+
+class MetaDataFS():
+    # metadata object that take class_table as a modifiable attribute 
+    def __init__(self, metadata, class_table):
+        self.metadata = metadata
+        self.class_table = class_table
+
+    def __getattr__(self, key):
+        if key != 'class_table':
+            return getattr(self.metadata, key)
+        else: 
+            return self.class_table
+        

@@ -171,7 +171,7 @@ class FineTuningTrainer(DiffusionTrainer):
         
         # Update cfg params 
         self.cfg.merge_from_list(['SOLVER.MAX_ITER', self.cfg.FINETUNE.MAX_ITER,
-                                    'TEST.EVAL_PERIOD', 10])
+                                    'TEST.EVAL_PERIOD', 5])
         self.scheduler = self.build_lr_scheduler(self.cfg, self.optimizer)
 
         # when restarting finetuning iter should be incremented from value in checkpoint
@@ -328,17 +328,10 @@ class FineTuningTrainer(DiffusionTrainer):
         # we can use the saved checkpoint to debug.
         ret.append(FSValidationHook(cfg.TEST.EVAL_PERIOD, 
                                 lambda: test_and_save_results(is_finetuning=self.is_finetuning)))
-        ret.append(FSTestHook(cfg.TEST.EVAL_PERIOD, 
-                                lambda: test_and_save_results(validation=False, 
-                                                                is_finetuning=self.is_finetuning)))
+        # ret.append(FSTestHook(cfg.TEST.EVAL_PERIOD, 
+        #                         lambda: test_and_save_results(validation=False, 
+        #                                                         is_finetuning=self.is_finetuning)))
 
-        # def test_and_save_Results():
-        #     self._last_eval_results = self.test(self.cfg, self.model)
-        #     return self._last_eval_results
-
-        # # Do evaluation after checkpointer, because then if it fails,
-        # # we can use the saved checkpoint to debug.
-        # ret.append(hooks.EvalHook(cfg.TEST.EVAL_PERIOD, test_and_save_results))
 
         if comm.is_main_process():
             # Here the default print/log frequency of each writer is used.

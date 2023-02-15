@@ -3,7 +3,7 @@ MODEL:
   META_ARCHITECTURE: 'FSDiffusionDet'
   WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
   # WEIGHTS: "detectron2://dino_resnet50_pretrain.pth"
-  WEIGHTS: "/home/pierre/Documents/PHD/FSDiffusionDet/runs/07-02-2023_17:34:01/model_base_final.pth"
+  # WEIGHTS: "/home/pierre/Documents/PHD/FSDiffusionDet/runs/07-02-2023_17:34:01/model_base_final.pth"
   RESNETS:
     DEPTH: 50
     STRIDE_IN_1X1: False

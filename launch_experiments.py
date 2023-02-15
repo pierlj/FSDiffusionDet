@@ -80,6 +80,7 @@ def main(args):
             trainer.resume_or_load(resume=False)
             trainer.launch_training()
 
+
 def build_cfg_list_from_exp_file(study_file):
     with open(study_file, 'r') as f:
         study_json = jstyleson.load(f)
