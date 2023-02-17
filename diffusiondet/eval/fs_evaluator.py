@@ -252,7 +252,8 @@ class FSEvaluator(COCOEvaluator):
                 if len(coco_results) > 0
                 else None  # cocoapi does not handle empty results very well
             )
-            class_names = [self._metadata.get("thing_classes")[idx] for idx in cat_ids]
+            id_map = self._metadata.get("thing_dataset_id_to_contiguous_id")
+            class_names = [self._metadata.get("thing_classes")[id_map[idx]] for idx in cat_ids]
             res = self._derive_coco_results(
                 coco_eval, task, class_names=class_names
             )
