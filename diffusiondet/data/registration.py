@@ -35,7 +35,7 @@ def register_dataset(dataset_dict):
     for split in dataset_dict['splits']:
         dataset_name =  dataset_dict['name'] + '_' + split
         
-        base_c, novel_c = read_split_file(os.path.join(dataset_dict['root_path'], dataset_dict['class_split_file']))
+        base_c, novel_c = read_split_file(dataset_dict['class_split_file'])
         
         if not dataset_name in DatasetCatalog:
             register_coco_instances(dataset_name, {'base_classes': base_c,
