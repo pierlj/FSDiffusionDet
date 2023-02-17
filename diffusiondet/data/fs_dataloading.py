@@ -175,9 +175,6 @@ class FilteredDataLoader():
                             )
             
         
-        self.dataloader.batch_size = min(len(self.dataloader.dataset),
-                                            self.dataloader.batch_size)
-        
         
     
     def __iter__(self):

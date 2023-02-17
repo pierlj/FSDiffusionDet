@@ -1,31 +1,23 @@
 _BASE_: "../Base-DiffusionDet.yaml"
-PREVENT_WEIGHTS_LOADING: False
 MODEL:
-  # BACKBONE:
-  #   NAME: 'build_resnet_dino_fpn_backbone'
   META_ARCHITECTURE: 'FSDiffusionDet'
-  # WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
-  # WEIGHTS: "detectron2://dino_resnet50_pretrain.pth"
-  WEIGHTS: "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth"
+  WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
   RESNETS:
     DEPTH: 50
     STRIDE_IN_1X1: False
   DiffusionDet:
-    NUM_PROPOSALS: 500
+    NUM_PROPOSALS: 200
     NUM_CLASSES: 16
 DATASETS:
   TRAIN: ("DOTA_train2017",)
   VAL: ("DOTA_val2017",)
   TEST:  ("DOTA_test2017",)
 SOLVER:
-  IMS_PER_BATCH: 16 
-  STEPS: (4000,)
-  MAX_ITER: 0
+  IMS_PER_BATCH: 24
+  STEPS: (40000,)
+  MAX_ITER: 50000
+  # MAX_ITER: 20
   CHECKPOINT_PERIOD: 10000
-  # LR_SCHEDULER_NAME: 'WarmupCosineLR'
-  BASE_LR: 1e-4
-  # BASE_LR_END: 1e-5
-  # WARMUP_ITERS: 500
 INPUT:
   CROP:
     ENABLED: True
@@ -37,14 +29,9 @@ INPUT:
 # TRAIN_MODE: 'support_attention'
 TRAIN_MODE: 'simplefs'
 FINETUNE:
-  MAX_ITER: 5000
-  MODEL_FREEZING:
-    BACKBONE_AT: 0
-    BACKBONE_MODE: 'all'
-    MODULES: ['backbone']
-    HEAD_ALL: True
+  MAX_ITER: 55000
 TEST:
-  EVAL_PERIOD: 5
+  EVAL_PERIOD: 500
 # OUTPUT_DIR: 'runs/23-01-2023_17:23:02'
 # OUTPUT_DIR: 'runs/07-02-2023_17:34:01'
 FEWSHOT:
