@@ -369,6 +369,7 @@ class FineTuningTrainer(DiffusionTrainer):
                 dataset_name = cfg.DATASETS.VAL[0] if validation else cfg.DATASETS.TEST[0]
 
             evaluator_name = evaluator.name
+            print(dataset_name)
             dataloader = cls.build_test_loader(trainer, cfg, evaluator.selected_classes, [dataset_name])
             results_i = evaluator.inference_on_dataset(model, dataloader, validation=validation)
             results[evaluator_name] = results_i
@@ -427,12 +428,12 @@ class FineTuningTrainer(DiffusionTrainer):
         # if resume=True, state dict should contain support extractor's weights
         # otherwise to avoid key conflicts, load state dict before the creation of 
         # the support extractor.
-        if resume:
+        if resume and self.cfg.TRAIN_MODE == 'support_attention':
             self.model.build_support_extractor()
 
         super().resume_or_load(resume=resume)
 
-        if not resume:
+        if not resume and self.cfg.TRAIN_MODE == 'support_attention':
             self.model.build_support_extractor()
     
     def select_iteration_classes(self, data):
