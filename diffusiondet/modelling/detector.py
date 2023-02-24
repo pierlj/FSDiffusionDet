@@ -21,6 +21,7 @@ from detectron2.modeling import META_ARCH_REGISTRY, build_backbone, detector_pos
 from detectron2.structures import Boxes, ImageList, Instances
 
 from .loss import SetCriterionDynamicK, HungarianMatcherDynamicK
+from .fs_loss import FSCriterion, FSMatcher
 from .head import DynamicHead, FSDynamicHead
 from ..util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh
 from ..util.misc import nested_tensor_from_tensor_list
@@ -144,9 +145,14 @@ class DiffusionDet(nn.Module):
         self.use_nms = cfg.MODEL.DiffusionDet.USE_NMS
 
         # Build Criterion.
-        matcher = HungarianMatcherDynamicK(
-            cfg=cfg, cost_class=class_weight, cost_bbox=l1_weight, cost_giou=giou_weight, use_focal=self.use_focal
-        )
+        if cfg.TRAIN_MODE != 'support_attention':
+            matcher = HungarianMatcherDynamicK(
+                cfg=cfg, cost_class=class_weight, cost_bbox=l1_weight, cost_giou=giou_weight, use_focal=self.use_focal
+            )
+        else:
+            matcher = FSMatcher(
+                cfg=cfg, cost_class=class_weight, cost_bbox=l1_weight, cost_giou=giou_weight, use_focal=self.use_focal
+            )
         weight_dict = {"loss_ce": class_weight, "loss_bbox": l1_weight, "loss_giou": giou_weight}
         if self.deep_supervision:
             aux_weight_dict = {}
@@ -156,9 +162,14 @@ class DiffusionDet(nn.Module):
 
         losses = ["labels", "boxes"]
 
-        self.criterion = SetCriterionDynamicK(
-            cfg=cfg, num_classes=self.num_classes, matcher=matcher, weight_dict=weight_dict, eos_coef=no_object_weight,
-            losses=losses, use_focal=self.use_focal,)
+        if cfg.TRAIN_MODE != 'support_attention':
+            self.criterion = SetCriterionDynamicK(
+                cfg=cfg, num_classes=self.num_classes, matcher=matcher, weight_dict=weight_dict, eos_coef=no_object_weight,
+                losses=losses, use_focal=self.use_focal,)
+        else:
+            self.criterion = FSCriterion(
+                cfg=cfg, num_classes=self.num_classes, matcher=matcher, weight_dict=weight_dict, eos_coef=no_object_weight,
+                losses=losses, use_focal=self.use_focal,)
 
         pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).to(self.device).view(3, 1, 1)
         pixel_std = torch.Tensor(cfg.MODEL.PIXEL_STD).to(self.device).view(3, 1, 1)
@@ -506,7 +517,7 @@ class DiffusionDet(nn.Module):
         """
         Normalize, pad and batch the input images.
         """
-        images = [self.normalizer(x["image"].to(self.device)) for x in batched_inputs]
+        images = [self.normalizer(x["image"].to(self.device, non_blocking=True)) for x in batched_inputs]
         images = ImageList.from_tensors(images, self.size_divisibility)
 
         images_whwh = list()

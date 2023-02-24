@@ -4,8 +4,10 @@ Plotting utilities to visualize training logs.
 import torch
 import pandas as pd
 import numpy as np
-import seaborn as sns
+# import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
 
 from pathlib import Path, PurePath
 
@@ -105,3 +107,42 @@ def plot_precision_recall(files, naming_scheme='iter'):
     axs[1].set_title('Scores / Recall')
     axs[1].legend(names)
     return fig, axs
+
+
+def plot_img_boxes(img, boxes, cfg=None):
+    img = img.cpu().permute(1,2,0).numpy()
+    fig, ax = plt.subplots()
+    if cfg is not None:
+        img = img * np.array(cfg.MODEL.PIXEL_STD) + np.array(cfg.MODEL.PIXEL_MEAN)
+        img = img.astype(np.uint8)
+    for box in boxes:
+        x, y, x_, y_ = box.numpy()
+        patch = patches.Rectangle((x,y),x_-x,y_-y,linewidth=1,edgecolor='r',facecolor='none')
+        
+        ax.add_patch(patch)
+        # ax.text(x, y-5, box['properties']['type_id'], c='r')
+    ax.imshow(img)
+
+    plt.show()
+
+
+def plot_all_img_boxes(img_list, data_list, cfg=None):
+    img_list = img_list.to('cpu')
+   
+    fig, axs = plt.subplots(len(img_list) // 2 + len(img_list) % 2, 2)
+    for idx, (img, data) in enumerate(zip(img_list, data_list)):
+        ax = axs[idx // 2, idx % 2]
+        boxes = data['instances'].gt_boxes
+        img = img.permute(1,2,0).numpy()
+        if cfg is not None:
+            img = img * np.array(cfg.MODEL.PIXEL_STD) + np.array(cfg.MODEL.PIXEL_MEAN)
+            img = img.astype(np.uint8)
+        for box in boxes:
+            x, y, x_, y_ = box.numpy()
+            patch = patches.Rectangle((x,y),x_-x,y_-y,linewidth=1,edgecolor='r',facecolor='none')
+            
+            ax.add_patch(patch)
+            # ax.text(x, y-5, box['properties']['type_id'], c='r')
+        ax.imshow(img)
+
+    plt.show()

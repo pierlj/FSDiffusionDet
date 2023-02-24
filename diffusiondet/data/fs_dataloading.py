@@ -144,6 +144,7 @@ class FilteredDataLoader():
                     mapper=mapper,
                     dataset=dataset,
                     sampler=sampler)
+            self.dataloader.dataset.pin_memory = True
             self.keep_annotations_from_classes = mapper.selected_classes
             self.draw_images_from_classes = sampler.selected_classes
 
