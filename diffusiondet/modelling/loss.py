@@ -449,3 +449,4 @@ class HungarianMatcherDynamicK(nn.Module):
         matched_query_id = torch.min(cost, dim=0)[1]
 
         return (selected_query, gt_indices), matched_query_id
+

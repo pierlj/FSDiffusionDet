@@ -16,10 +16,11 @@ from detectron2.structures import Boxes, ImageList, Instances
 
 from ..data.fs_dataloading import *
 from ..data.utils import filter_class_table
+from ..util.plot_utils import plot_img_boxes, plot_all_img_boxes
 
 
 class SupportExtractor(nn.Module):
-    def __init__(self, cfg, device, mode='build_resnet_fpn_backbone', fpn=False, resnet_depth=50, *args, **kwargs):
+    def __init__(self, cfg, device, mode='build_resnet_fpn_backbone', backbone=None, fpn=False, resnet_depth=50, *args, **kwargs):
         """
         Extractor objects that computes features from support images and annotations.
         
@@ -71,6 +72,7 @@ class SupportExtractor(nn.Module):
         with torch.no_grad():
             for data in dataloader:
                 image_batch, image_whwh = self.preprocess_image(data)
+                # plot_all_img_boxes(image_batch, data, self.cfg)
                 image_batch = image_batch.to(self.device)
                 support_features = self.extractor(image_batch.tensor)
 
