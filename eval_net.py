@@ -110,8 +110,8 @@ def main(args):
 
 if __name__ == "__main__":
     args_parser = default_argument_parser()
-    args_parser.add_argument("--model_path", default=None, type=str, help='Path to model to evaluate.')
-    args_parser.add_argument("--base_eval", default=True, type=bool, help='Wether to evaluate on base classes only or not.')
+    args_parser.add_argument("--model-path", default=None, type=str, help='Path to model to evaluate.')
+    args_parser.add_argument("--base-eval", default=False, type=bool, help='Wether to evaluate on base classes only or not.')
     args = args_parser.parse_args()
     print("Command Line Args:", args)
     launch(
