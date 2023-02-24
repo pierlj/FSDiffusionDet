@@ -91,6 +91,13 @@ def add_fs_config(cfg):
 
     cfg.FEWSHOT.SUPPORT_EXTRACTOR = CN()
     cfg.FEWSHOT.SUPPORT_EXTRACTOR.WEIGHT = "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
+
+
+    cfg.FINETUNE.MODEL_FREEZING = CN()
+    cfg.FINETUNE.MODEL_FREEZING.BACKBONE_AT = 0
+    cfg.FINETUNE.MODEL_FREEZING.BACKBONE_MODE = 'all'
+    cfg.FINETUNE.MODEL_FREEZING.MODULES = ['backbone']
+    cfg.FINETUNE.MODEL_FREEZING.HEAD_ALL = False
     
 
 
