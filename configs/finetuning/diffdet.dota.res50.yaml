@@ -1,8 +1,11 @@
 _BASE_: "../Base-DiffusionDet.yaml"
+PREVENT_WEIGHTS_LOADING: True
 MODEL:
+  BACKBONE:
+    NAME: 'build_resnet_dino_fpn_backbone'
   META_ARCHITECTURE: 'FSDiffusionDet'
   # WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
-  WEIGHTS: "detectron2://dino_resnet50_pretrain.pth"
+  # WEIGHTS: "detectron2://dino_resnet50_pretrain.pth"
   # WEIGHTS: "/home/pierre/Documents/PHD/FSDiffusionDet/runs/07-02-2023_17:34:01/model_base_final.pth"
   RESNETS:
     DEPTH: 50
@@ -15,9 +18,9 @@ DATASETS:
   VAL: ("DOTA_val2017",)
   TEST:  ("DOTA_test2017",)
 SOLVER:
-  IMS_PER_BATCH: 16 
+  IMS_PER_BATCH: 12 
   STEPS: (40000,)
-  MAX_ITER: 0
+  MAX_ITER: 10000
   # MAX_ITER: 20
   CHECKPOINT_PERIOD: 10000
   LR_SCHEDULER_NAME: 'WarmupCosineLR'
@@ -49,6 +52,6 @@ FEWSHOT:
   ATTENTION:
     EXTRACT_EVERY: 10
     MAX_NUM_CLASSES: 3
-  K_SHOT: 1
+  K_SHOT: 10
   BASE_SUPPORT: 'rng'
 

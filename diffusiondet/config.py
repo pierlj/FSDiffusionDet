@@ -104,6 +104,7 @@ def add_fs_config(cfg):
 def add_additional_config(cfg):
     cfg.DATASETS.VAL = ()
     cfg.TRAIN_MODE = 'regular'
+    cfg.PREVENT_WEIGHTS_LOADING = False
 
 def create_unique_output_path(ouput_dir, study_folder=None):
     dt_string = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")

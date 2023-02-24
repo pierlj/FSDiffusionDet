@@ -1,3 +1,4 @@
 from .detector import DiffusionDet
 from .fs_detector import FSDiffusionDet
 from .swintransformer import build_swintransformer_fpn_backbone
+from .pretrained_backbones import build_resnet_clip_fpn_backbone, build_resnet_dino_fpn_backbone

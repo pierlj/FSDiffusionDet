@@ -31,6 +31,7 @@ from ..eval.fs_evaluator import FSEvaluator
 from ..eval.hooks import FSValidationHook, FSTestHook
 from ..train.hooks import SupportExtractionHook
 from ..data.utils import filter_class_table, filter_instances
+from ..modelling.utils import freeze_model_filtered
 
 
 class FineTuningTrainer(DiffusionTrainer):
@@ -145,9 +146,10 @@ class FineTuningTrainer(DiffusionTrainer):
 
         # freeze net
         # self.freeze_model(freeze_modules=['backbone', 'head'], 
-        self.freeze_model(freeze_modules=['backbone',], 
-                            backbone_freeze_at=0, # all backbone
-                            cls_reg_module=False) #last layer of each head only is trained
+        self.freeze_model(freeze_modules=self.cfg.FINETUNE.MODEL_FREEZING.MODULES, # Freeze only backbone or also head
+                            freeze_mode=self.cfg.FINETUNE.MODEL_FREEZING.BACKBONE_MODE, # what to freeze in backbone
+                            backbone_freeze_at=self.cfg.FINETUNE.MODEL_FREEZING.BACKBONE_AT, # Backbone freeze stages
+                            freeze_cls_reg_module=self.cfg.FINETUNE.MODEL_FREEZING.HEAD_ALL) # When True: last layer of each head only is trained
              
                             
         # update allowed classes
@@ -171,7 +173,7 @@ class FineTuningTrainer(DiffusionTrainer):
         
         # Update cfg params 
         self.cfg.merge_from_list(['SOLVER.MAX_ITER', self.cfg.FINETUNE.MAX_ITER,
-                                    'TEST.EVAL_PERIOD', 5])
+                                    'TEST.EVAL_PERIOD', 500])
         self.scheduler = self.build_lr_scheduler(self.cfg, self.optimizer)
 
         # when restarting finetuning iter should be incremented from value in checkpoint
@@ -328,15 +330,15 @@ class FineTuningTrainer(DiffusionTrainer):
         # we can use the saved checkpoint to debug.
         ret.append(FSValidationHook(cfg.TEST.EVAL_PERIOD, 
                                 lambda: test_and_save_results(is_finetuning=self.is_finetuning)))
-        # ret.append(FSTestHook(cfg.TEST.EVAL_PERIOD, 
-        #                         lambda: test_and_save_results(validation=False, 
-        #                                                         is_finetuning=self.is_finetuning)))
+        ret.append(FSTestHook(cfg.TEST.EVAL_PERIOD, 
+                                lambda: test_and_save_results(validation=False, 
+                                                                is_finetuning=self.is_finetuning)))
 
 
         if comm.is_main_process():
             # Here the default print/log frequency of each writer is used.
             # run writers in the end, so that evaluation metrics are written
-            ret.append(hooks.PeriodicWriter(self.build_writers(), period=20))
+            ret.append(hooks.PeriodicWriter(self.build_writers(), period=5))
         return ret
 
     @classmethod
@@ -385,7 +387,12 @@ class FineTuningTrainer(DiffusionTrainer):
         #     results = list(results.values())[0]
         return results
     
-    def freeze_model(self, freeze_modules=['backbone'], backbone_freeze_at=0, cls_reg_module=False, time_mlp=True):
+    def freeze_model(self, freeze_modules=['backbone'], 
+                            freeze_mode='all', 
+                            backbone_freeze_at=0, 
+                            freeze_cls_reg_module=False, 
+                            time_mlp=True, 
+                            log=False):
         '''
         Freeze model parameters for various modules
         When backbone_freeze == 0, freeze all backbone parameters
@@ -393,25 +400,31 @@ class FineTuningTrainer(DiffusionTrainer):
 
         '''
         if 'backbone' in freeze_modules:
-            if backbone_freeze_at > 0:
-                self.model.backbone.bottom_up.freeze(backbone_freeze_at)
-            else:
-                for param in self.model.backbone.parameters():
-                    param.requires_grad = False
+            if freeze_mode == 'all':
+                if backbone_freeze_at > 0:
+                    self.model.backbone.bottom_up.freeze(backbone_freeze_at)
+                else:
+                    freeze_model_filtered(self.model.backbone)
+            elif freeze_mode == 'bias':
+                freeze_model_filtered(self.model.backbone, ['bias'])
+            elif freeze_mode == 'norm':
+                freeze_model_filtered(self.model.backbone, ['norm'])
+
         if 'head' in freeze_modules:
             hot_modules = ['cls_module', 'reg_module', 'class_logits', 'bboxes_delta']
+            
             for module in self.model.head.head_series:
-                for name, param in module.named_parameters():
-                    if all([hm not in name for hm in hot_modules]):
-                        self.logger.info('Freeze param: {}'.format(name))
-                        param.requires_grad = False
-                    elif ('cls_module' in name or 'reg_module' in name) and cls_reg_module:
-                        self.logger.info('Freeze param: {}'.format(name))
-                        param.requires_grad = False
+                if not freeze_cls_reg_module:
+                    freeze_model_filtered(module, ['cls_module', 'reg_module', 'class_logits', 'bboxes_delta'], freeze_mode)
+                else:
+                    freeze_model_filtered(module, ['class_logits', 'bboxes_delta'], freeze_mode)
 
             if time_mlp:        
-                for param in self.model.head.time_mlp.parameters():
-                    param.requires_grad = False
+                freeze_model_filtered(self.model.head.time_mlp, [freeze_mode])
+
+        if log: 
+            for name, param in self.model.named_parameters():
+                self.logger.info('Weights named {} is {}.'.format(name, 'trainable' if param.requires_grad else 'frozen'))
     
     def replace_classification_layer(self, model, cfg):
         
@@ -427,12 +440,14 @@ class FineTuningTrainer(DiffusionTrainer):
         # if resume=True, state dict should contain support extractor's weights
         # otherwise to avoid key conflicts, load state dict before the creation of 
         # the support extractor.
-        if resume:
+        if resume and self.cfg.TRAIN_MODE == 'support_attention':
             self.model.build_support_extractor()
 
-        super().resume_or_load(resume=resume)
 
-        if not resume:
+        if not self.cfg.PREVENT_WEIGHTS_LOADING:
+            super().resume_or_load(resume=resume)
+
+        if not resume and self.cfg.TRAIN_MODE == 'support_attention':
             self.model.build_support_extractor()
     
     def select_iteration_classes(self, data):
