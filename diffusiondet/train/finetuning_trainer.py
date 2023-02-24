@@ -4,6 +4,8 @@ import weakref
 import time
 import os
 import shutil
+from torch.nn.parallel import DistributedDataParallel as DDP
+
 
 from collections import OrderedDict
 
@@ -57,6 +59,16 @@ class FineTuningTrainer(DiffusionTrainer):
         data_loader = self.build_train_loader(cfg, selected_classes)
 
         model = create_ddp_model(model, broadcast_buffers=False)
+        
+        # Workaround for code compatibility when using DDP
+        # print(type(model))
+        # if isinstance(model, DDP):
+        #     print('DDP')
+        #     model.attr_accessor = model.module
+        # else:
+        #     print('No DDP')
+        #     model.attr_accessor = model
+            
         self._trainer = (AMPTrainer if cfg.SOLVER.AMP.ENABLED else SimpleTrainer)(
             model, data_loader, optimizer
         )
