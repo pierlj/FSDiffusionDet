@@ -4,8 +4,6 @@ MODEL:
   # BACKBONE:
   #   NAME: 'build_resnet_dino_fpn_backbone'
   META_ARCHITECTURE: 'FSDiffusionDet'
-  # WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
-  # WEIGHTS: "detectron2://dino_resnet50_pretrain.pth"
   WEIGHTS: "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth"
   RESNETS:
     DEPTH: 50
