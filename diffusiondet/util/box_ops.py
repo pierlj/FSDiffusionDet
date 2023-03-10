@@ -60,6 +60,32 @@ def generalized_box_iou(boxes1, boxes2):
 
     return iou - (area - union) / area
 
+def generalized_box_siou(boxes1, boxes2, gamma=-4, kappa=16):
+    """
+    Generalized Scaled IoU
+
+    The boxes should be in [x0, y0, x1, y1] format
+
+    Returns a [N, M] pairwise matrix, where N = len(boxes1)
+    and M = len(boxes2)
+    """
+    
+    gious = generalized_box_iou(boxes1, boxes2)
+
+    area_1 = torch.prod(boxes1[:, 2:] - boxes1[:, :2], dim=-1)
+    area_2 = torch.prod(boxes2[:, 2:] - boxes2[:, :2], dim=-1)
+
+    mean_area = (area_1[:, None] + area_2[None]) / 2
+
+    p = 1 - gamma * torch.exp(-torch.sqrt(mean_area) / kappa)
+
+    gsious = torch.where(gious > 0, torch.pow(gious.abs(), p),
+                             -torch.pow(gious.abs(), p))
+
+    return gsious
+
+
+
 
 def masks_to_boxes(masks):
     """Compute the bounding boxes around the provided masks
