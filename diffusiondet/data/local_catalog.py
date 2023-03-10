@@ -10,7 +10,7 @@ dior_dict = {'root_path': '/home/pierre/Documents/PHD/Datasets/DIOR/coco_format'
 
 pascal_dict = {'root_path': '/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/Merged',
                 'name': 'PASCAL_VOC',
-                'splits': ['train2017', 'test2017', 'val2017'],
+                'splits': ['train', 'test', 'val'],
                 'class_split_file': '/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/Merged/classes_split.txt'}
 
 coco_dict = {'root_path': '/home/pierre/Documents/PHD/Datasets/MSCOCO',

@@ -173,7 +173,7 @@ class FineTuningTrainer(DiffusionTrainer):
         
         # Update cfg params 
         self.cfg.merge_from_list(['SOLVER.MAX_ITER', self.cfg.FINETUNE.MAX_ITER,
-                                    'TEST.EVAL_PERIOD', 500])
+                                    'TEST.EVAL_PERIOD', 250])
         self.scheduler = self.build_lr_scheduler(self.cfg, self.optimizer)
 
         # when restarting finetuning iter should be incremented from value in checkpoint
@@ -202,9 +202,14 @@ class FineTuningTrainer(DiffusionTrainer):
 
     def build_dataset(self, cfg):
         self.dataset, self.dataset_metadata = get_datasets(cfg.DATASETS.TRAIN, cfg)
+        if cfg.FEWSHOT.SPLIT_METHOD == 'all_novel':
+            filtered_classes =  list(self.dataset_metadata.class_table.keys())
+        else:
+            filtered_classes = self.dataset_metadata.novel_classes
+        
         self.dataset_metadata.class_table = filter_class_table(self.dataset_metadata.class_table, 
                                                                 cfg.FEWSHOT.K_SHOT,
-                                                                self.dataset_metadata.novel_classes)
+                                                                filtered_classes)
         self.task_sampler = TaskSampler(cfg, self.dataset_metadata, torch.Generator())
 
     def build_train_loader(self, cfg, selected_classes, n_query=100, remap_labels=False):
@@ -301,9 +306,9 @@ class FineTuningTrainer(DiffusionTrainer):
 
 
             if is_finetuning:
-                self.model.selected_classes = self.dataset_metadata.novel_classes
+                self.model.selected_classes = self.task_sampler.c_test
             elif self.cfg.TRAIN_MODE == 'support_attention': 
-                self.model.selected_classes = self.dataset_metadata.base_classes
+                self.model.selected_classes = self.task_sampler.c_train
 
             if self.cfg.TRAIN_MODE == 'support_attention':
                 extract_support_features(source='val' if validation else '')
@@ -338,7 +343,7 @@ class FineTuningTrainer(DiffusionTrainer):
         if comm.is_main_process():
             # Here the default print/log frequency of each writer is used.
             # run writers in the end, so that evaluation metrics are written
-            ret.append(hooks.PeriodicWriter(self.build_writers(), period=5))
+            ret.append(hooks.PeriodicWriter(self.build_writers(), period=50))
         return ret
 
     @classmethod
