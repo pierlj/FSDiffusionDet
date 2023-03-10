@@ -6,7 +6,7 @@ MODEL:
   META_ARCHITECTURE: 'FSDiffusionDet'
   # WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
   # WEIGHTS: "detectron2://dino_resnet50_pretrain.pth"
-  WEIGHTS: "/home/pierre/Documents/PHD/FSDiffusionDet/runs/12-02-2023_18:53:10/model_base_final.pth"
+  WEIGHTS: "/home/pierre/Documents/PHD/FSDiffusionDet/runs/Backbones/model_base_COCO_500P_BS16_2G/model_base_COCO_500P_BS16_2G.pth"
   RESNETS:
     DEPTH: 50
     STRIDE_IN_1X1: False
@@ -38,6 +38,7 @@ INPUT:
 # TRAIN_MODE: 'support_attention'
 TRAIN_MODE: 'simplefs'
 FINETUNE:
+  CROSS_DOMAIN: True
   MAX_ITER: 5000
   MODEL_FREEZING:
     BACKBONE_AT: 0
@@ -45,10 +46,13 @@ FINETUNE:
     MODULES: ['backbone']
     HEAD_ALL: True
 TEST:
-  EVAL_PERIOD: 5
+  EVAL_PERIOD: 500
 # OUTPUT_DIR: 'runs/23-01-2023_17:23:02'
 # OUTPUT_DIR: 'runs/07-02-2023_17:34:01'
 FEWSHOT:
+  SPLIT_METHOD: 'all_novel'
+  N_WAYS_TRAIN: 16
+  N_WAYS_TEST: 16
   ATTENTION:
     EXTRACT_EVERY: 10
     MAX_NUM_CLASSES: 3

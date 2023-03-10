@@ -1,7 +1,7 @@
 _BASE_: "../Base-DiffusionDet.yaml"
 MODEL:
   META_ARCHITECTURE: 'FSDiffusionDet'
-  WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
+  WEIGHTS: "/home/pierre/Documents/PHD/FSDiffusionDet/runs/12-02-2023_18:53:10/model_base_final.pth"
   RESNETS:
     DEPTH: 50
     STRIDE_IN_1X1: False
@@ -29,17 +29,21 @@ INPUT:
 # TRAIN_MODE: 'support_attention'
 TRAIN_MODE: 'simplefs'
 FINETUNE:
+  CROSS_DOMAIN: True
   MAX_ITER: 5000
 TEST:
   EVAL_PERIOD: 500
 # OUTPUT_DIR: 'runs/23-01-2023_17:23:02'
 # OUTPUT_DIR: 'runs/07-02-2023_17:34:01'
 FEWSHOT:
+  SPLIT_METHOD: 'all_novel'
+  N_WAYS_TRAIN: 20
+  N_WAYS_TEST: 20
   ATTENTION:
     EXTRACT_EVERY: 10
     MAX_NUM_CLASSES: 3
   K_SHOT: 10
-  N_WAYS_TEST: 5
-  N_WAYS_TRAIN: 5
+  N_WAYS_TEST: 20
+  N_WAYS_TRAIN: 20
   BASE_SUPPORT: 'rng'
 
