@@ -15,7 +15,7 @@ from fvcore.nn import sigmoid_focal_loss_jit
 import torchvision.ops as ops
 from ..util import box_ops
 from ..util.misc import get_world_size, is_dist_avail_and_initialized
-from ..util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh, generalized_box_iou
+from ..util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh, generalized_box_iou, generalized_box_siou
 
 
 class SetCriterionDynamicK(nn.Module):
@@ -59,6 +59,9 @@ class SetCriterionDynamicK(nn.Module):
             empty_weight = torch.ones(self.num_classes + 1)
             empty_weight[-1] = self.eos_coef
             self.register_buffer('empty_weight', empty_weight)
+
+        self.bbox_crit = generalized_box_iou if cfg.MODEL.DiffusionDet.REG_LOSS_TYPE == 'giou' \
+                                                else generalized_box_siou
 
     # copy-paste from https://github.com/facebookresearch/detectron2/blob/main/detectron2/modeling/roi_heads/fast_rcnn.py#L356
     def get_fed_loss_classes(self, gt_classes, num_fed_loss_classes, num_classes, weight):
@@ -197,7 +200,7 @@ class SetCriterionDynamicK(nn.Module):
             losses['loss_bbox'] = loss_bbox.sum() / num_boxes
 
             # loss_giou = giou_loss(box_ops.box_cxcywh_to_xyxy(src_boxes), box_ops.box_cxcywh_to_xyxy(target_boxes))
-            loss_giou = 1 - torch.diag(box_ops.generalized_box_iou(src_boxes, target_boxes_abs_xyxy))
+            loss_giou = 1 - torch.diag(self.bbox_crit(src_boxes, target_boxes_abs_xyxy))
             losses['loss_giou'] = loss_giou.sum() / num_boxes
         else:
             losses = {'loss_bbox': outputs['pred_boxes'].sum() * 0,
@@ -286,12 +289,16 @@ class HungarianMatcherDynamicK(nn.Module):
         self.cost_bbox = cost_bbox
         self.cost_giou = cost_giou
         self.use_focal = use_focal
+
         self.use_fed_loss = cfg.MODEL.DiffusionDet.USE_FED_LOSS
         self.ota_k = cfg.MODEL.DiffusionDet.OTA_K
         if self.use_focal:
             self.focal_loss_alpha = cfg.MODEL.DiffusionDet.ALPHA
             self.focal_loss_gamma = cfg.MODEL.DiffusionDet.GAMMA
         assert cost_class != 0 or cost_bbox != 0 or cost_giou != 0,  "all costs cant be 0"
+
+        self.bbox_crit = generalized_box_iou if cfg.MODEL.DiffusionDet.REG_COST_TYPE == 'giou' \
+                                                else generalized_box_siou
 
     def forward(self, outputs, targets):
         """ simOTA for detr"""
@@ -358,7 +365,8 @@ class HungarianMatcherDynamicK(nn.Module):
                 bz_tgt_bbox_ = bz_gtboxs_abs_xyxy / bz_image_size_tgt  # normalize (x1, y1, x2, y2)
                 cost_bbox = torch.cdist(bz_out_bbox_, bz_tgt_bbox_, p=1)
 
-                cost_giou = -generalized_box_iou(bz_boxes, bz_gtboxs_abs_xyxy)
+                
+                cost_giou = -self.bbox_crit(bz_boxes, bz_gtboxs_abs_xyxy)
 
                 # Final cost matrix
                 cost = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou + 100.0 * (~is_in_boxes_and_center)

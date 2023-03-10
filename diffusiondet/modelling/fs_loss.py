@@ -6,7 +6,7 @@ import torchvision.ops as ops
 
 from ..util import box_ops
 from ..util.misc import get_world_size, is_dist_avail_and_initialized
-from ..util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh, generalized_box_iou
+from ..util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh
 
 from .loss import SetCriterionDynamicK, HungarianMatcherDynamicK
 
@@ -71,7 +71,7 @@ class FSCriterion(SetCriterionDynamicK):
             losses['loss_bbox'] = loss_bbox.sum() / num_boxes
 
             # loss_giou = giou_loss(box_ops.box_cxcywh_to_xyxy(src_boxes), box_ops.box_cxcywh_to_xyxy(target_boxes))
-            loss_giou = 1 - torch.diag(box_ops.generalized_box_iou(src_boxes, target_boxes_abs_xyxy))
+            loss_giou = 1 - torch.diag(self.bbox_crit(src_boxes, target_boxes_abs_xyxy))
             losses['loss_giou'] = loss_giou.sum() / num_boxes
         else:
             losses = {'loss_bbox': outputs['pred_boxes'].sum() * 0,
@@ -159,7 +159,7 @@ class FSMatcher(HungarianMatcherDynamicK):
                 cost_bbox = torch.cdist(bz_out_bbox_, bz_tgt_bbox_, p=1)
                 cost_bbox = cost_bbox.gather(0, bz_tgt_ids_repeated)[0] # [n_queries, n_inst]
 
-                cost_giou = -generalized_box_iou(bz_boxes.view(Nc * num_queries, 4), bz_gtboxs_abs_xyxy)
+                cost_giou = -self.bbox_crit(bz_boxes.view(Nc * num_queries, 4), bz_gtboxs_abs_xyxy)
                 cost_giou = cost_giou.view(Nc, num_queries, num_insts)
                 cost_giou = cost_giou.gather(0, bz_tgt_ids_repeated)[0] # [n_queries, n_inst]
 
