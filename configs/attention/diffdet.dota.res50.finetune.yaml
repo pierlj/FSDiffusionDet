@@ -1,7 +1,7 @@
 _BASE_: "../Base-DiffusionDet.yaml"
 MODEL:
   META_ARCHITECTURE: 'FSDiffusionDet'
-  WEIGHTS: "/home/pierre/Documents/PHD/FSDiffusionDet/runs/Backbones/model_base_DOTA_500P_BS16_2G/model_base_DOTA_500P_BS16_2G.pth"
+  WEIGHTS: "/media/pierre/Data_SSD/Experiments_FSDiff/runs/Backbones/model_base_DOTA_500P_BS16_2G/model_base_DOTA_500P_BS16_2G.pth"
   RESNETS:
     DEPTH: 50
     STRIDE_IN_1X1: False

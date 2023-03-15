@@ -1,7 +1,7 @@
 _BASE_: "../Base-DiffusionDet.yaml"
 MODEL:
   META_ARCHITECTURE: 'FSDiffusionDet'
-  WEIGHTS: "/home/pierre/Documents/PHD/FSDiffusionDet/runs/12-02-2023_18:53:10/model_base_final.pth"
+  WEIGHTS: "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth"
   RESNETS:
     DEPTH: 50
     STRIDE_IN_1X1: False
