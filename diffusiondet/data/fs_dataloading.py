@@ -230,7 +230,15 @@ class SupportClassMapper(DiffusionDetDatasetMapper):
     Dataset Mapper extension to filter out annotations whose labels do not belong
     into selected_classes list. 
     """
-    def __init__(self, selected_classes, contiguous_mapping, class_repartition, base_support, *args, remap_labels=False, seed=1234, **kwargs):
+    def __init__(self, selected_classes, 
+                        contiguous_mapping, 
+                        class_repartition, 
+                        base_support, 
+                        *args, 
+                        remap_labels=False, 
+                        seed=1234,  
+                        keep_all_instances=False, 
+                        **kwargs):
         super().__init__(*args, **kwargs)
         self.selected_classes = torch.tensor(selected_classes)
         self.contiguous_mapping = contiguous_mapping
@@ -238,6 +246,7 @@ class SupportClassMapper(DiffusionDetDatasetMapper):
         self.remap_labels = remap_labels
         self.seed = seed
         self.base_support = base_support
+        self.keep_all_instances = keep_all_instances
         self.rng = torch.Generator()
         
     def __call__(self, dataset_dict):
@@ -248,12 +257,16 @@ class SupportClassMapper(DiffusionDetDatasetMapper):
         
         if dataset_dict['class_sampled'] in self.class_repartition['novel'] or self.base_support == 'same':
             self.rng.manual_seed(self.seed)
+
+        
         keep = torch.where(labels.unsqueeze(-1) == labels_allowed.unsqueeze(0))[0]
-        keep = keep[torch.randint(keep.shape[0], (1,), generator=self.rng)]
+        if not self.keep_all_instances:
+            keep = keep[torch.randint(keep.shape[0], (1,), generator=self.rng)]
         dataset_dict['old_instances'] = copy.deepcopy(instances)
         instances = filter_instances(instances, keep)
+
         if self.remap_labels:
-            instances.get_fields()['gt_classes']
+            labels = instances.gt_classes
             labels = torch.where(self.selected_classes[None] == labels[:,None])[1]
             instances.set('gt_classes', labels)
 

@@ -28,7 +28,7 @@ from diffusiondet import DiffusionDetDatasetMapper, add_diffusiondet_config, \
     DiffusionDetWithTTA, add_additional_config, add_fs_config, create_unique_output_path
 from diffusiondet.util.model_ema import add_model_ema_configs, may_get_ema_checkpointer, EMADetectionCheckpointer
 
-from diffusiondet.train import DiffusionTrainer, FineTuningTrainer
+from diffusiondet.train import DiffusionTrainer, FineTuningTrainer, TransductiveTrainer
 from diffusiondet.data import register_dataset, LOCAL_CATALOG, get_datasets
 from diffusiondet.eval.fs_evaluator import FSEvaluator
 
@@ -54,6 +54,8 @@ def select_trainer(cfg):
         return DiffusionTrainer
     elif cfg.TRAIN_MODE in ['simplefs', 'support_attention'] :
         return FineTuningTrainer
+    elif cfg.TRAIN_MODE == 'transductive':
+        return TransductiveTrainer
 
 def main(args):
     registered = False
@@ -104,7 +106,7 @@ def main(args):
                                                             name=evaluator_name, 
                                                             metric_save_path=metric_save_path),]        
 
-        res = Trainer.eval(Trainer, cfg, model, evaluators, validation=False)
+        res = Trainer.eval(cfg, model, evaluators, validation=False)
     os.rename(os.path.join(model_dir, '_last_checkpoint'), os.path.join(model_dir, 'last_checkpoint'))
 
 

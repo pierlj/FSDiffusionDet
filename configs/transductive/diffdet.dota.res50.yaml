@@ -1,0 +1,42 @@
+_BASE_: "../Base-DiffusionDet.yaml"
+MODEL:
+  META_ARCHITECTURE: 'TDiffusionDet'
+  WEIGHTS: "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth"
+  RESNETS:
+    DEPTH: 50
+    STRIDE_IN_1X1: False
+  DiffusionDet:
+    NUM_PROPOSALS: 500
+    NUM_CLASSES: 16
+DATASETS:
+  TRAIN: ("DOTA_train2017",)
+  VAL: ("DOTA_val2017",)
+  TEST:  ("DOTA_test2017",)
+SOLVER:
+  BASE_LR: 0.0001
+  STEPS: (99000,)
+  IMS_PER_BATCH: 8
+  MAX_ITER: 0
+  # MAX_ITER: 20
+  CHECKPOINT_PERIOD: 10000
+INPUT:
+  CROP:
+    ENABLED: True
+  FORMAT: "RGB"
+  MIN_SIZE_TRAIN: (512,)
+  MAX_SIZE_TRAIN: 512
+  MIN_SIZE_TEST: 512
+  MAX_SIZE_TEST: 512
+TRAIN_MODE: 'transductive'
+# TRAIN_MODE: 'simplefs'
+FINETUNE:
+  MAX_ITER: 2500
+TEST:
+  EVAL_PERIOD: 5
+# OUTPUT_DIR: 'runs/19-01-2023_18:20:22'
+FEWSHOT:
+  ATTENTION:
+    EXTRACT_EVERY: 5
+  K_SHOT: 1
+  BASE_SUPPORT: 'rng'
+
