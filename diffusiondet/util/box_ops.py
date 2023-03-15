@@ -60,7 +60,7 @@ def generalized_box_iou(boxes1, boxes2):
 
     return iou - (area - union) / area
 
-def generalized_box_siou(boxes1, boxes2, gamma=-4, kappa=16):
+def generalized_box_siou(boxes1, boxes2, gamma=0.5, kappa=64):
     """
     Generalized Scaled IoU
 
