@@ -224,9 +224,13 @@ class FineTuningTrainer(DiffusionTrainer):
         return dataloader
     
     @classmethod
-    def build_test_loader(cls, trainer, cfg, selected_classes, dataset_name):
+    def build_test_loader(cls, trainer, cfg, selected_classes, dataset_name, validation=False):
         dataset, dataset_metadata = get_datasets(dataset_name, cfg)
-        sampler = ClassSampler(cfg, dataset_metadata, selected_classes, n_query=-1, is_train=False)
+        if validation:
+            n_query = 50
+        else:
+            n_query = -1 
+        sampler = ClassSampler(cfg, dataset_metadata, selected_classes, n_query=n_query, is_train=False)
         
         mapper = DatasetMapper(cfg, False)
 
@@ -376,7 +380,7 @@ class FineTuningTrainer(DiffusionTrainer):
                 dataset_name = cfg.DATASETS.VAL[0] if validation else cfg.DATASETS.TEST[0]
 
             evaluator_name = evaluator.name
-            dataloader = cls.build_test_loader(trainer, cfg, evaluator.selected_classes, [dataset_name])
+            dataloader = cls.build_test_loader(trainer, cfg, evaluator.selected_classes, [dataset_name], validation=validation)
             results_i = evaluator.inference_on_dataset(model, dataloader, validation=validation)
             results[evaluator_name] = results_i
             if comm.is_main_process():
