@@ -177,7 +177,7 @@ class TransductiveTrainer(DiffusionTrainer):
         
         # Update cfg params 
         self.cfg.merge_from_list(['SOLVER.MAX_ITER', self.cfg.FINETUNE.MAX_ITER,
-                                    'TEST.EVAL_PERIOD', 5])
+                                    'TEST.EVAL_PERIOD', 50])
         self.scheduler = self.build_lr_scheduler(self.cfg, self.optimizer)
 
         # when restarting finetuning iter should be incremented from value in checkpoint
@@ -265,7 +265,7 @@ class TransductiveTrainer(DiffusionTrainer):
                             cfg, 
                             is_train=False, 
                             remap_labels=remap_labels,
-                            keep_all_instances=True,
+                            keep_all_instances=False,
                             log=False)
         
         dataset = SupportDataset(dataset)

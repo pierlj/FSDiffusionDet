@@ -1,3 +1,7 @@
+import numpy as np
+from scipy import sparse
+from sklearn.neighbors import NearestNeighbors
+
 import torch
 from collections import OrderedDict
 from detectron2.layers import batched_nms
@@ -8,6 +12,7 @@ from collections import namedtuple
 
 from .detector import DiffusionDet
 from ..util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh
+from ..util.laplacian_shot import bound_update
 
 ModelPrediction = namedtuple('ModelPrediction', ['pred_noise', 'pred_x_start'])
 
@@ -34,7 +39,12 @@ class TDiffusionDet(DiffusionDet):
 
     @property
     def num_classes(self):
-        return self.cfg.MODEL.DiffusionDet.NUM_CLASSES
+        if self.selected_classes is not None:
+            return len(self.selected_classes)
+        elif self._num_classes is not None:
+            return self._num_classes
+        else:
+            return self.cfg.MODEL.DiffusionDet.NUM_CLASSES
     
     def ddim_sample(self, batched_inputs, backbone_feats, images_whwh, images, clip_denoised=True, do_postprocess=True):
         batch = images_whwh.shape[0]
@@ -55,10 +65,12 @@ class TDiffusionDet(DiffusionDet):
             time_cond = torch.full((batch,), time, device=self.device, dtype=torch.long)
             self_cond = x_start if self.self_condition else None
 
-            preds, outputs_class_ind, outputs_coord, output_embeddings = self.model_predictions(backbone_feats, images_whwh, img, time_cond,
+            preds, _, outputs_coord, output_embeddings = self.model_predictions(backbone_feats, images_whwh, img, time_cond,
                                                                          self_cond, clip_x_start=clip_denoised)
 
-            outputs_class_transductive = self.transductive_inference(output_embeddings)
+            outputs_class = self.transductive_inference(output_embeddings)
+
+
 
             pred_noise, x_start = preds.pred_noise, preds.pred_x_start
 
@@ -202,6 +214,63 @@ class TDiffusionDet(DiffusionDet):
     def transductive_inference(self, query_embeddings):
         support_embeddings, support_labels = self.extract_support_embeddings()
         
+        k_shot = self.cfg.FEWSHOT.K_SHOT
+        n_ways = len(self.selected_classes)
+        # compute prototype as mean support embedding per class
+        support_embeddings = torch.stack([emb[-1, 0, 0] for emb in support_embeddings], dim=0)
+        support_labels = torch.cat([torch.cat(lab, dim=0) for lab in support_labels], dim=0)
+        
+        support_labels, sorted_indices = torch.sort(support_labels)
+        support_embeddings = support_embeddings[sorted_indices]
+
+        support_embeddings = support_embeddings.reshape(n_ways, k_shot, -1).mean(dim=1)
+        support_labels = support_labels.reshape(n_ways, k_shot)[:,0]
+
+    
+        query_embeddings = query_embeddings[-1]
+        B, n_boxes, d = query_embeddings.shape
+        n_classes, d = support_embeddings.shape
+        query_embeddings = query_embeddings.flatten(end_dim=1) # B*Nboxes x d
+
+        # center and normalize query and support embeddings
+        # TODO change center to use train mean (all classes and all images)
+        mean_embedding = support_embeddings.mean(dim=0)
+        # mean_embedding = query_embeddings.mean(dim=0)
+        # mean_embedding = get_train_mean()
+
+
+        support_embeddings = support_embeddings - mean_embedding
+        support_embeddings = support_embeddings / support_embeddings.norm(p=2, dim=1, keepdim=True)
+
+        # query_embeddings = query_embeddings - query_embeddings.mean(dim=0) 
+        query_embeddings = query_embeddings - mean_embedding
+        query_embeddings = query_embeddings / query_embeddings.norm(p=2, dim=1, keepdim=True)
+
+        #add support rectification here
+
+        substract = support_embeddings[:, None, :] - query_embeddings
+        distance = substract.norm(p=2, dim=-1).cpu().numpy()
+
+        W = self.create_affinity(query_embeddings.cpu().numpy(), 10)
+        lmd = 1.0
+        logits = bound_update(distance.transpose() ** 2, W, lmd)  
+        logits =  torch.from_numpy(logits).to(substract.device)
+        return logits.reshape(1, B, n_boxes, n_classes)
+
+
+    def create_affinity(self, X, knn):
+        N, D = X.shape
+        # print('Compute Affinity ')
+        nbrs = NearestNeighbors(n_neighbors=knn).fit(X)
+        dist, knnind = nbrs.kneighbors(X)
+
+        row = np.repeat(range(N), knn - 1)
+        col = knnind[:, 1:].flatten()
+        data = np.ones(X.shape[0] * (knn - 1))
+        W = sparse.csc_matrix((data, (row, col)), shape=(N, N), dtype=np.float)
+
+        return W
+
     
     def extract_support_embeddings(self):
         batched_embeddings = []
