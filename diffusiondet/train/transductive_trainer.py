@@ -243,7 +243,8 @@ class TransductiveTrainer(DiffusionTrainer):
                                         mapper, 
                                         sampler, 
                                         dataset_metadata, 
-                                        is_eval=True)
+                                        is_eval=True,
+                                        forced_bs=8)
         return dataloader.dataloader
 
     @classmethod

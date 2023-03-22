@@ -76,6 +76,9 @@ def main(args):
             f.write(path.split('/')[-1])
 
         cfg = setup(args, model_dir)
+        if args.transductive:
+            cfg.merge_from_list(['TRAIN_MODE', 'transductive',
+                                'MODEL.META_ARCHITECTURE', 'TDiffusionDet'])
         if not registered:
             logger.info('Registering dataset from LOCAL CATALOG with key: {}'.format(cfg.DATASETS.TEST[0].split('_')[0]))
             register_dataset(LOCAL_CATALOG[cfg.DATASETS.TEST[0].split('_')[0]])
@@ -85,6 +88,7 @@ def main(args):
 
 
         model = Trainer.build_model(cfg, is_finetuned=not base_eval)
+        
         kwargs = may_get_ema_checkpointer(cfg, model)
         if cfg.MODEL_EMA.ENABLED:
             EMADetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR, **kwargs).resume_or_load(cfg.MODEL.WEIGHTS,
@@ -97,6 +101,13 @@ def main(args):
         _, dataset_metadata = get_datasets(dataset_name, cfg)
         selected_classes = dataset_metadata.base_classes if base_eval else dataset_metadata.novel_classes
         model.selected_classes = None if base_eval else selected_classes
+
+        model.support_loader = Trainer.build_support_dataloader(cfg, 
+                                            selected_classes, 
+                                            [cfg.DATASETS.TRAIN[0]],
+                                            n_query=cfg.FEWSHOT.K_SHOT, 
+                                            remap_labels=cfg.FINETUNE.NOVEL_ONLY)
+
         output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
         metric_save_path = os.path.join(cfg.OUTPUT_DIR, 'base_classes_metrics.json' if base_eval else \
                                                                 'novel_classes_metrics.json')
@@ -114,6 +125,7 @@ if __name__ == "__main__":
     args_parser = default_argument_parser()
     args_parser.add_argument("--model-path", default=None, type=str, help='Path to model to evaluate.')
     args_parser.add_argument("--base-eval", default=False, type=bool, help='Wether to evaluate on base classes only or not.')
+    args_parser.add_argument("--transductive", default=False, type=bool, help='Wether to evaluate with transductive inference.')
     args = args_parser.parse_args()
     print("Command Line Args:", args)
     launch(

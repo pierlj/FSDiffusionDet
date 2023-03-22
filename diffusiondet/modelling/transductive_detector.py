@@ -26,6 +26,8 @@ class TDiffusionDet(DiffusionDet):
         self.cfg = cfg
         super().__init__(cfg, *args, **kwargs)
 
+        self._support_embeddings =  None
+
     def inference(self, box_cls, box_pred, image_sizes):
         results = super().inference(box_cls, box_pred, image_sizes)
         if self.selected_classes is not None:
@@ -255,6 +257,7 @@ class TDiffusionDet(DiffusionDet):
         lmd = 1.0
         logits = bound_update(distance.transpose() ** 2, W, lmd)  
         logits =  torch.from_numpy(logits).to(substract.device)
+        logits = torch.randn_like(logits)
         return logits.reshape(1, B, n_boxes, n_classes)
 
 
@@ -273,34 +276,36 @@ class TDiffusionDet(DiffusionDet):
 
     
     def extract_support_embeddings(self):
-        batched_embeddings = []
-        batched_labels = []
-        for batched_inputs in self.support_loader:
-            images, images_whwh = self.preprocess_image(batched_inputs)
-            if isinstance(images, (list, torch.Tensor)):
-                images = nested_tensor_from_tensor_list(images)
+        if self._support_embeddings is None:
+            batched_embeddings = []
+            batched_labels = []
+            for batched_inputs in self.support_loader:
+                images, images_whwh = self.preprocess_image(batched_inputs)
+                if isinstance(images, (list, torch.Tensor)):
+                    images = nested_tensor_from_tensor_list(images)
 
-            # Feature Extraction.
-            src = self.backbone(images.tensor)
-            features = list()
-            for f in self.in_features:
-                feature = src[f]
-                features.append(feature)
+                # Feature Extraction.
+                src = self.backbone(images.tensor)
+                features = list()
+                for f in self.in_features:
+                    feature = src[f]
+                    features.append(feature)
 
-            gt_instances = [x["instances"].to(self.device) for x in batched_inputs]
-            targets, x_boxes, noises, _ = self.prepare_targets(gt_instances)
-            support_labels = [inst.gt_classes for inst in gt_instances]
-            support_boxes = [inst.gt_boxes.tensor[None] for inst in gt_instances]
-            
-            t = torch.zeros(1, device=x_boxes.device)
-            
-            for idx_support, boxes in enumerate(support_boxes):
-                feat_support = [feat[idx_support][None] for feat in features]
+                gt_instances = [x["instances"].to(self.device) for x in batched_inputs]
+                targets, x_boxes, noises, _ = self.prepare_targets(gt_instances)
+                support_labels = [inst.gt_classes for inst in gt_instances]
+                support_boxes = [inst.gt_boxes.tensor[None] for inst in gt_instances]
                 
-                _, _, output_embs = self.head(feat_support, boxes, t, None, is_support=True)
-                batched_embeddings.append(output_embs)
-            batched_labels.append(support_labels)
-        
-        return batched_embeddings, batched_labels
-
-    
+                t = torch.zeros(1, device=x_boxes.device)
+                
+                for idx_support, boxes in enumerate(support_boxes):
+                    feat_support = [feat[idx_support][None] for feat in features]
+                    
+                    _, _, output_embs = self.head(feat_support, boxes, t, None, is_support=True)
+                    batched_embeddings.append(output_embs)
+                batched_labels.append(support_labels)
+            self._support_embeddings = (batched_embeddings, batched_labels)
+            return batched_embeddings, batched_labels
+        else: 
+            return self._support_embeddings
+            
