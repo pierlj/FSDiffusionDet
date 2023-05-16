@@ -9,8 +9,8 @@ MODEL:
     NUM_PROPOSALS: 500
     NUM_CLASSES: 20
 DATASETS:
-  TRAIN: ("DIOR_train",)
-  VAL: ("DIOR_val",)
+  TRAIN: ("DIOR_train2017",)
+  VAL: ("DIOR_val2017",)
   TEST:  ("DIOR_test",)
 SOLVER:
   IMS_PER_BATCH: 16
