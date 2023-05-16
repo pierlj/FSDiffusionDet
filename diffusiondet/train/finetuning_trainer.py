@@ -350,7 +350,7 @@ class FineTuningTrainer(DiffusionTrainer):
         if comm.is_main_process():
             # Here the default print/log frequency of each writer is used.
             # run writers in the end, so that evaluation metrics are written
-            ret.append(hooks.PeriodicWriter(self.build_writers(), period=5))
+            ret.append(hooks.PeriodicWriter(self.build_writers(), period=50))
         return ret
 
     @classmethod

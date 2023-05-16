@@ -1,5 +1,4 @@
 _BASE_: "../Base-DiffusionDet.yaml"
-PREVENT_WEIGHTS_LOADING: True
 MODEL:
   BACKBONE:
     NAME: 'build_resnet_dino_fpn_backbone'

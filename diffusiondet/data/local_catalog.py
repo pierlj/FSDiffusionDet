@@ -6,12 +6,12 @@ dota_dict = {'root_path': '/gpfsscratch/rech/vlf/ues92cf/DOTA/coco_format/',
 dior_dict = {'root_path': '/gpfsscratch/rech/vlf/ues92cf/DIOR/',
                 'name': 'DIOR',
                 'splits': ['train', 'test', 'val'],
-                'class_split_file': '/gpfsscratch/rech/vlf/ues92cf/DOTA/coco_format/classes_split.txt'}
+                'class_split_file': '/gpfsscratch/rech/vlf/ues92cf/DIOR/classes_split.txt'}
 
 pascal_dict = {'root_path': '/gpfsscratch/rech/vlf/ues92cf/PascalVOC/',
                 'name': 'PASCAL_VOC',
                 'splits': ['train', 'test', 'val'],
-                'class_split_file': '/gpfsscratch/rech/vlf/ues92cf/DOTA/coco_format/classes_split.txt'}
+                'class_split_file': '/gpfsscratch/rech/vlf/ues92cf/PascalVOC/classes_split.txt'}
 
 coco_dict = {'root_path': '/gpfsdswork/dataset/COCO',
                 'name': 'COCO',
