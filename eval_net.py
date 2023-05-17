@@ -14,6 +14,8 @@ This script is a simplified version of the training script in detectron2/tools.
 import os
 import logging
 
+# import tsnecuda
+# tsne = tsnecuda.TSNE(n_components=2, perplexity=10)
 import torch
 
 import detectron2.utils.comm as comm
@@ -28,7 +30,7 @@ from diffusiondet import DiffusionDetDatasetMapper, add_diffusiondet_config, \
     DiffusionDetWithTTA, add_additional_config, add_fs_config, create_unique_output_path
 from diffusiondet.util.model_ema import add_model_ema_configs, may_get_ema_checkpointer, EMADetectionCheckpointer
 
-from diffusiondet.train import DiffusionTrainer, FineTuningTrainer
+from diffusiondet.train import DiffusionTrainer, FineTuningTrainer, TransductiveTrainer
 from diffusiondet.data import register_dataset, LOCAL_CATALOG, get_datasets
 from diffusiondet.eval.fs_evaluator import FSEvaluator
 
@@ -54,6 +56,8 @@ def select_trainer(cfg):
         return DiffusionTrainer
     elif cfg.TRAIN_MODE in ['simplefs', 'support_attention'] :
         return FineTuningTrainer
+    elif cfg.TRAIN_MODE == 'transductive':
+        return TransductiveTrainer
 
 def main(args):
     registered = False
@@ -74,6 +78,10 @@ def main(args):
             f.write(path.split('/')[-1])
 
         cfg = setup(args, model_dir)
+        if args.transductive:
+            cfg.merge_from_list(['TRAIN_MODE', 'transductive',
+                                'MODEL.META_ARCHITECTURE', 'TDiffusionDet',
+                                'FEWSHOT.K_SHOT', 10])
         if not registered:
             logger.info('Registering dataset from LOCAL CATALOG with key: {}'.format(cfg.DATASETS.TEST[0].split('_')[0]))
             register_dataset(LOCAL_CATALOG[cfg.DATASETS.TEST[0].split('_')[0]])
@@ -83,6 +91,7 @@ def main(args):
 
 
         model = Trainer.build_model(cfg, is_finetuned=not base_eval)
+        
         kwargs = may_get_ema_checkpointer(cfg, model)
         if cfg.MODEL_EMA.ENABLED:
             EMADetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR, **kwargs).resume_or_load(cfg.MODEL.WEIGHTS,
@@ -93,8 +102,22 @@ def main(args):
         
         dataset_name = cfg.DATASETS.TEST
         _, dataset_metadata = get_datasets(dataset_name, cfg)
-        selected_classes = dataset_metadata.base_classes if base_eval else dataset_metadata.novel_classes
+        if cfg.FEWSHOT.SPLIT_METHOD == 'all_novel':
+            selected_classes = list(dataset_metadata.class_table.keys())
+        else:
+            selected_classes = dataset_metadata.base_classes if base_eval else dataset_metadata.novel_classes
+        all_classes = list(dataset_metadata.class_table.keys())
         model.selected_classes = None if base_eval else selected_classes
+        model.base_classes = dataset_metadata.base_classes
+        model.save_dir = model_dir
+        # model.tsne = tsne
+        
+        model.support_loader = Trainer.build_support_dataloader(cfg, 
+                                            selected_classes, 
+                                            [cfg.DATASETS.TRAIN[0]],
+                                            n_query=cfg.FEWSHOT.K_SHOT, 
+                                            remap_labels=cfg.FINETUNE.NOVEL_ONLY)
+
         output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
         metric_save_path = os.path.join(cfg.OUTPUT_DIR, 'base_classes_metrics.json' if base_eval else \
                                                                 'novel_classes_metrics.json')
@@ -104,7 +127,7 @@ def main(args):
                                                             name=evaluator_name, 
                                                             metric_save_path=metric_save_path),]        
 
-        res = Trainer.eval(Trainer, cfg, model, evaluators, validation=False)
+        res = Trainer.eval(cfg, model, evaluators, validation=False)
     os.rename(os.path.join(model_dir, '_last_checkpoint'), os.path.join(model_dir, 'last_checkpoint'))
 
 
@@ -112,6 +135,7 @@ if __name__ == "__main__":
     args_parser = default_argument_parser()
     args_parser.add_argument("--model-path", default=None, type=str, help='Path to model to evaluate.')
     args_parser.add_argument("--base-eval", default=False, type=bool, help='Wether to evaluate on base classes only or not.')
+    args_parser.add_argument("--transductive", default=False, type=bool, help='Wether to evaluate with transductive inference.')
     args = args_parser.parse_args()
     print("Command Line Args:", args)
     launch(

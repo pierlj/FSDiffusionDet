@@ -1,7 +1,7 @@
 _BASE_: "../Base-DiffusionDet.yaml"
 MODEL:
-  META_ARCHITECTURE: 'FSDiffusionDet'
-  WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
+  META_ARCHITECTURE: 'TDiffusionDet'
+  WEIGHTS: "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth"
   RESNETS:
     DEPTH: 50
     STRIDE_IN_1X1: False
@@ -9,13 +9,14 @@ MODEL:
     NUM_PROPOSALS: 500
     NUM_CLASSES: 20
 DATASETS:
-  TRAIN: ("DIOR_train2017",)
-  VAL: ("DIOR_val2017",)
+  TRAIN: ("DIOR_train",)
+  VAL: ("DIOR_val",)
   TEST:  ("DIOR_test",)
 SOLVER:
-  IMS_PER_BATCH: 16
+  BASE_LR: 0.0001
+  STEPS: (99000,)
+  IMS_PER_BATCH: 8
   MAX_ITER: 0
-  STEPS: (4000,)
   # MAX_ITER: 20
   CHECKPOINT_PERIOD: 10000
 INPUT:
@@ -26,20 +27,16 @@ INPUT:
   MAX_SIZE_TRAIN: 512
   MIN_SIZE_TEST: 512
   MAX_SIZE_TEST: 512
-# TRAIN_MODE: 'support_attention'
-TRAIN_MODE: 'simplefs'
+TRAIN_MODE: 'transductive'
+# TRAIN_MODE: 'simplefs'
 FINETUNE:
-  MAX_ITER: 80000
+  MAX_ITER: 2500
 TEST:
-  EVAL_PERIOD: 500
-# OUTPUT_DIR: 'runs/23-01-2023_17:23:02'
-# OUTPUT_DIR: 'runs/07-02-2023_17:34:01'
+  EVAL_PERIOD: 5
+# OUTPUT_DIR: 'runs/19-01-2023_18:20:22'
 FEWSHOT:
   ATTENTION:
-    EXTRACT_EVERY: 10
-    MAX_NUM_CLASSES: 3
+    EXTRACT_EVERY: 5
   K_SHOT: 10
-  N_WAYS_TEST: 5
-  N_WAYS_TRAIN: 5
   BASE_SUPPORT: 'rng'
 

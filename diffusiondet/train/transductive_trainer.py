@@ -4,8 +4,7 @@ import weakref
 import time
 import os
 import shutil
-from torch.nn.parallel import DistributedDataParallel as DDP
-
+import copy
 
 from collections import OrderedDict
 
@@ -26,7 +25,7 @@ from diffusiondet.util.model_ema import may_build_model_ema, may_get_ema_checkpo
     apply_model_ema_and_restore
 
 from .trainer import DiffusionTrainer
-from ..data import DiffusionDetDatasetMapper, ClassMapper, ClassSampler, FilteredDataLoader
+from ..data import *
 from ..data.registration import get_datasets
 from ..data.task_sampling import TaskSampler
 from ..eval.fs_evaluator import FSEvaluator
@@ -36,7 +35,8 @@ from ..data.utils import filter_class_table, filter_instances
 from ..modelling.utils import freeze_model_filtered
 
 
-class FineTuningTrainer(DiffusionTrainer):
+
+class TransductiveTrainer(DiffusionTrainer):
     def __init__(self, cfg):
         super(DefaultTrainer, self).__init__()
         # self.logger = logging.getLogger('base.training')    
@@ -59,16 +59,6 @@ class FineTuningTrainer(DiffusionTrainer):
         data_loader = self.build_train_loader(cfg, selected_classes)
 
         model = create_ddp_model(model, broadcast_buffers=False)
-        
-        # Workaround for code compatibility when using DDP
-        # print(type(model))
-        # if isinstance(model, DDP):
-        #     print('DDP')
-        #     model.attr_accessor = model.module
-        # else:
-        #     print('No DDP')
-        #     model.attr_accessor = model
-            
         self._trainer = (AMPTrainer if cfg.SOLVER.AMP.ENABLED else SimpleTrainer)(
             model, data_loader, optimizer
         )
@@ -129,11 +119,8 @@ class FineTuningTrainer(DiffusionTrainer):
         start = time.perf_counter()
 
         data = next(iter(self.data_loader))
-        if self.cfg.TRAIN_MODE == 'support_attention':
-            data = self.select_iteration_classes(data)
-        data_time = time.perf_counter() - start
 
-        
+        data_time = time.perf_counter() - start
        
         loss_dict = self.model(data)
         if isinstance(loss_dict, torch.Tensor):
@@ -167,9 +154,8 @@ class FineTuningTrainer(DiffusionTrainer):
         # update allowed classes
         if self.cfg.FINETUNE.NOVEL_ONLY:
             selected_classes = self.task_sampler.c_test
-            if self.cfg.TRAIN_MODE == 'simplefs':
-                self.replace_classification_layer(self.model, self.cfg)
-                self.model._num_classes = len(selected_classes)
+            self.replace_classification_layer(self.model, self.cfg)
+            self.model._num_classes = len(selected_classes)
             self.model.criterion.num_classes = len(selected_classes)
             self.model.selected_classes = selected_classes
             
@@ -182,10 +168,17 @@ class FineTuningTrainer(DiffusionTrainer):
                                             selected_classes, 
                                             n_query=self.cfg.FEWSHOT.K_SHOT, 
                                             remap_labels=self.cfg.FINETUNE.NOVEL_ONLY)
+
+
+        self.model.support_loader = self.build_support_dataloader(self.cfg, 
+                                            selected_classes, 
+                                            [self.cfg.DATASETS.TRAIN[0]],
+                                            n_query=self.cfg.FEWSHOT.K_SHOT, 
+                                            remap_labels=self.cfg.FINETUNE.NOVEL_ONLY)
         
         # Update cfg params 
         self.cfg.merge_from_list(['SOLVER.MAX_ITER', self.cfg.FINETUNE.MAX_ITER,
-                                    'TEST.EVAL_PERIOD', 250])
+                                    'TEST.EVAL_PERIOD', 50])
         self.scheduler = self.build_lr_scheduler(self.cfg, self.optimizer)
 
         # when restarting finetuning iter should be incremented from value in checkpoint
@@ -224,12 +217,12 @@ class FineTuningTrainer(DiffusionTrainer):
                                                                 filtered_classes)
         self.task_sampler = TaskSampler(cfg, self.dataset_metadata, torch.Generator())
 
-    def build_train_loader(self, cfg, selected_classes, n_query=100, remap_labels=False):
+    def build_train_loader(self, cfg, selected_classes, n_query=100, remap_labels=False, is_support=False):
         sampler = ClassSampler(cfg, self.dataset_metadata, selected_classes, n_query=n_query, is_train=True)
         mapper = ClassMapper(selected_classes, 
                             self.dataset_metadata.thing_dataset_id_to_contiguous_id,
                             cfg, 
-                            is_train=True, 
+                            is_train=not is_support, # using train loader as support loader for transductive inference
                             remap_labels=remap_labels)
 
         dataloader = FilteredDataLoader(cfg, self.dataset, mapper, sampler, self.dataset_metadata)
@@ -244,15 +237,81 @@ class FineTuningTrainer(DiffusionTrainer):
             n_query = -1 
         sampler = ClassSampler(cfg, dataset_metadata, selected_classes, n_query=n_query, is_train=False)
         
-        mapper = DatasetMapper(cfg, False)
+        # mapper = DatasetMapper(cfg, False)
+        mapper = ClassMapper(selected_classes, 
+                            dataset_metadata.thing_dataset_id_to_contiguous_id,
+                            cfg, 
+                            is_train=False, # using train loader as support loader for transductive inference
+                            remap_labels=False)
 
         dataloader = FilteredDataLoader(cfg, 
                                         dataset, 
                                         mapper, 
                                         sampler, 
                                         dataset_metadata, 
-                                        is_eval=True)
+                                        is_eval=True,
+                                        forced_bs=32)
         return dataloader.dataloader
+
+    @classmethod
+    def build_support_dataloader(cls, cfg, selected_classes, dataset_name, n_query, remap_labels=False):
+        dataset, dataset_metadata = get_datasets(dataset_name, cfg)
+        sampler = SupportClassSampler(cfg, 
+                                      dataset_metadata, 
+                                      selected_classes, 
+                                      n_query=n_query, 
+                                      base_support=cfg.FEWSHOT.BASE_SUPPORT)
+        
+        class_repartition = {'base': dataset_metadata.base_classes,
+                             'novel': dataset_metadata.novel_classes}
+
+        mapper = SupportClassMapper(selected_classes, 
+                            dataset_metadata.thing_dataset_id_to_contiguous_id,
+                            class_repartition, 
+                            cfg.FEWSHOT.BASE_SUPPORT,
+                            cfg, 
+                            is_train=False, 
+                            remap_labels=remap_labels,
+                            keep_all_instances=False,
+                            log=False)
+        
+        dataset = SupportDataset(dataset)
+
+        dataloader = FilteredDataLoader(cfg, 
+                                        dataset, 
+                                        mapper, 
+                                        sampler, 
+                                        dataset_metadata, 
+                                        is_eval=True, 
+                                        is_support=True, 
+                                        forced_bs=64)
+        return dataloader
+
+    @classmethod
+    def build_train_mean_dataloader(cls, cfg, selected_classes, dataset_name):
+        dataset, dataset_metadata = get_datasets(dataset_name, cfg)
+        sampler = ClassSampler(cfg, 
+                                dataset_metadata, 
+                                selected_classes, 
+                                n_query=-1)
+        
+
+        mapper = ClassMapper(selected_classes, 
+                            dataset_metadata.thing_dataset_id_to_contiguous_id,
+                            cfg, 
+                            is_train=False)
+        
+        dataset = SupportDataset(dataset)
+
+        dataloader = FilteredDataLoader(cfg, 
+                                        dataset, 
+                                        mapper, 
+                                        sampler, 
+                                        dataset_metadata, 
+                                        is_eval=True, 
+                                        forced_bs=64)
+        return dataloader
+
 
     def _write_metrics(
         self,
@@ -490,11 +549,4 @@ class FineTuningTrainer(DiffusionTrainer):
         
         self.model.criterion.num_classes = num_classes
         return data
-        
-
-
-        
-
-    
-    
 

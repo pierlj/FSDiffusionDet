@@ -22,7 +22,10 @@ from detectron2.structures import Boxes, ImageList, Instances
 
 from .loss import SetCriterionDynamicK, HungarianMatcherDynamicK
 from .fs_loss import FSCriterion, FSMatcher
-from .head import DynamicHead, FSDynamicHead
+from .transductive_loss import TCriterion, TMatcher
+from .head import DynamicHead 
+from .fs_head import FSDynamicHead
+from .transductive_head import TDynamicHead
 from ..util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh
 from ..util.misc import nested_tensor_from_tensor_list
 
@@ -132,6 +135,8 @@ class DiffusionDet(nn.Module):
         # Build Dynamic Head.
         if cfg.TRAIN_MODE == 'support_attention':
             self.head = FSDynamicHead(cfg=cfg, roi_input_shape=self.backbone.output_shape(), model_ref=weakref.ref(self))
+        elif cfg.TRAIN_MODE == 'transductive':
+            self.head = TDynamicHead(cfg=cfg, roi_input_shape=self.backbone.output_shape(), model_ref=weakref.ref(self))
         else:
             self.head = DynamicHead(cfg=cfg, roi_input_shape=self.backbone.output_shape())
         # Loss parameters:
@@ -145,12 +150,17 @@ class DiffusionDet(nn.Module):
         self.use_nms = cfg.MODEL.DiffusionDet.USE_NMS
 
         # Build Criterion.
-        if cfg.TRAIN_MODE != 'support_attention':
-            matcher = HungarianMatcherDynamicK(
+        
+        if cfg.TRAIN_MODE == 'support_attention':
+            matcher = FSMatcher(
+                cfg=cfg, cost_class=class_weight, cost_bbox=l1_weight, cost_giou=giou_weight, use_focal=self.use_focal
+            )
+        elif cfg.TRAIN_MODE == 'transductive':
+            matcher = TMatcher(
                 cfg=cfg, cost_class=class_weight, cost_bbox=l1_weight, cost_giou=giou_weight, use_focal=self.use_focal
             )
         else:
-            matcher = FSMatcher(
+            matcher = HungarianMatcherDynamicK(
                 cfg=cfg, cost_class=class_weight, cost_bbox=l1_weight, cost_giou=giou_weight, use_focal=self.use_focal
             )
         weight_dict = {"loss_ce": class_weight, "loss_bbox": l1_weight, "loss_giou": giou_weight}
@@ -162,12 +172,18 @@ class DiffusionDet(nn.Module):
 
         losses = ["labels", "boxes"]
 
-        if cfg.TRAIN_MODE != 'support_attention':
-            self.criterion = SetCriterionDynamicK(
+        
+        if cfg.TRAIN_MODE == 'support_attention':
+            self.criterion = FSCriterion(
+                cfg=cfg, num_classes=self.num_classes, matcher=matcher, weight_dict=weight_dict, eos_coef=no_object_weight,
+                losses=losses, use_focal=self.use_focal,)
+        elif cfg.TRAIN_MODE == 'transductive':
+            # losses = ["boxes"]
+            self.criterion = TCriterion(
                 cfg=cfg, num_classes=self.num_classes, matcher=matcher, weight_dict=weight_dict, eos_coef=no_object_weight,
                 losses=losses, use_focal=self.use_focal,)
         else:
-            self.criterion = FSCriterion(
+            self.criterion = SetCriterionDynamicK(
                 cfg=cfg, num_classes=self.num_classes, matcher=matcher, weight_dict=weight_dict, eos_coef=no_object_weight,
                 losses=losses, use_focal=self.use_focal,)
 
@@ -216,9 +232,10 @@ class DiffusionDet(nn.Module):
         for time, time_next in time_pairs:
             time_cond = torch.full((batch,), time, device=self.device, dtype=torch.long)
             self_cond = x_start if self.self_condition else None
-
+            print('Evaluation not transductive')
             preds, outputs_class, outputs_coord = self.model_predictions(backbone_feats, images_whwh, img, time_cond,
                                                                          self_cond, clip_x_start=clip_denoised)
+            print(outputs_class)
             pred_noise, x_start = preds.pred_noise, preds.pred_x_start
 
             if self.box_renewal:  # filter

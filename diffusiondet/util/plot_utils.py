@@ -1,12 +1,21 @@
 """
 Plotting utilities to visualize training logs.
 """
+import os
+import random
+
+from PIL import Image
+
 import torch
 import pandas as pd
 import numpy as np
 # import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+
+from .misc import save_pickle, load_pickle
+
+
 
 
 from pathlib import Path, PurePath
@@ -146,3 +155,58 @@ def plot_all_img_boxes(img_list, data_list, cfg=None):
         ax.imshow(img)
 
     plt.show()
+
+def plot_tsne(tsne, embeddings, labels=None, perplexity=30):
+    X = tsne.fit_transform(embeddings.cpu().numpy())
+    x_emb = X[:,0]
+    y_emb = X[:,1]
+    if labels is not None:
+        plt.scatter(x_emb, y_emb, c=labels.cpu().numpy())
+    else:
+        plt.scatter(x_emb, y_emb)
+    
+    plt.show()
+
+def save_tsne_data(embeddings, 
+                    ft_logits, 
+                    ft_boxes, 
+                    batched_input, 
+                    n_box_per_img, 
+                    matched_labels, 
+                    transductive_logits, 
+                    selected_classes, 
+                    save_dir):
+
+    if not isinstance(selected_classes, torch.Tensor):
+        selected_classes = torch.tensor(selected_classes).cuda()
+
+
+    save_path = os.path.join(save_dir, 'visualization/tmp')
+    if not os.path.isdir(save_path):
+        os.makedirs(save_path)
+
+    for (emb, boxes, logits, inputs, gt_labels, t_logits) in zip(embeddings, ft_boxes, ft_logits, batched_input, matched_labels, transductive_logits):
+        crops = get_crops(inputs['image'], boxes)
+        file_id = random.randint(0, 1e8)
+
+        save_pickle(os.path.join(save_path, '{}.pkl'.format(file_id)), 
+                [emb.cpu(), boxes.cpu(), logits.cpu(), gt_labels.cpu(), t_logits.cpu()])
+
+        for idx, crop in enumerate(crops):
+            img_crop = Image.fromarray(crop.permute(1,2,0).cpu().numpy().astype(np.uint8))
+            img_crop.save(os.path.join(save_path, '{}_{}.png'.format(file_id, idx)))
+
+def get_crops(img, boxes):
+    crops = []
+    dummy_crop = torch.zeros(3, 25, 25)
+    dummy_crop[0] = 255
+    for box in boxes:
+        box = box.int()
+        box = box.clamp(0, 512)
+        w = box[3] - box[1]
+        h = box[2] - box[0]
+        if w > 0 and h > 0:
+            crops.append(img[:,box[1]:box[3], box[0]:box[2]])
+        else:
+            crops.append(dummy_crop)
+    return crops

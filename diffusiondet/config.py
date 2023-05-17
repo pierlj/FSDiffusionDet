@@ -84,6 +84,7 @@ def add_fs_config(cfg):
     cfg.FINETUNE = CN()
     cfg.FINETUNE.MAX_ITER = 100
     cfg.FINETUNE.NOVEL_ONLY = True
+    cfg.FINETUNE.CROSS_DOMAIN = False
 
     cfg.FEWSHOT.ATTENTION = CN()
     cfg.FEWSHOT.ATTENTION.EXTRACT_EVERY = 1
@@ -98,6 +99,7 @@ def add_fs_config(cfg):
     cfg.FINETUNE.MODEL_FREEZING.BACKBONE_MODE = 'all'
     cfg.FINETUNE.MODEL_FREEZING.MODULES = ['backbone']
     cfg.FINETUNE.MODEL_FREEZING.HEAD_ALL = False
+
     
 
 
@@ -105,6 +107,9 @@ def add_additional_config(cfg):
     cfg.DATASETS.VAL = ()
     cfg.TRAIN_MODE = 'regular'
     cfg.PREVENT_WEIGHTS_LOADING = False
+
+    cfg.MODEL.DiffusionDet.REG_LOSS_TYPE = 'giou' # 'siou' or 'giou'
+    cfg.MODEL.DiffusionDet.REG_COST_TYPE = 'giou' # 'siou' or 'giou'
 
 def create_unique_output_path(ouput_dir, study_folder=None):
     dt_string = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
