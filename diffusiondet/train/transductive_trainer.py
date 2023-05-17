@@ -169,6 +169,7 @@ class TransductiveTrainer(DiffusionTrainer):
                                             n_query=self.cfg.FEWSHOT.K_SHOT, 
                                             remap_labels=self.cfg.FINETUNE.NOVEL_ONLY)
 
+
         self.model.support_loader = self.build_support_dataloader(self.cfg, 
                                             selected_classes, 
                                             [self.cfg.DATASETS.TRAIN[0]],
@@ -236,7 +237,12 @@ class TransductiveTrainer(DiffusionTrainer):
             n_query = -1 
         sampler = ClassSampler(cfg, dataset_metadata, selected_classes, n_query=n_query, is_train=False)
         
-        mapper = DatasetMapper(cfg, False)
+        # mapper = DatasetMapper(cfg, False)
+        mapper = ClassMapper(selected_classes, 
+                            dataset_metadata.thing_dataset_id_to_contiguous_id,
+                            cfg, 
+                            is_train=False, # using train loader as support loader for transductive inference
+                            remap_labels=False)
 
         dataloader = FilteredDataLoader(cfg, 
                                         dataset, 
@@ -244,7 +250,7 @@ class TransductiveTrainer(DiffusionTrainer):
                                         sampler, 
                                         dataset_metadata, 
                                         is_eval=True,
-                                        forced_bs=8)
+                                        forced_bs=32)
         return dataloader.dataloader
 
     @classmethod
@@ -278,8 +284,34 @@ class TransductiveTrainer(DiffusionTrainer):
                                         dataset_metadata, 
                                         is_eval=True, 
                                         is_support=True, 
-                                        forced_bs=8)
+                                        forced_bs=64)
         return dataloader
+
+    @classmethod
+    def build_train_mean_dataloader(cls, cfg, selected_classes, dataset_name):
+        dataset, dataset_metadata = get_datasets(dataset_name, cfg)
+        sampler = ClassSampler(cfg, 
+                                dataset_metadata, 
+                                selected_classes, 
+                                n_query=-1)
+        
+
+        mapper = ClassMapper(selected_classes, 
+                            dataset_metadata.thing_dataset_id_to_contiguous_id,
+                            cfg, 
+                            is_train=False)
+        
+        dataset = SupportDataset(dataset)
+
+        dataloader = FilteredDataLoader(cfg, 
+                                        dataset, 
+                                        mapper, 
+                                        sampler, 
+                                        dataset_metadata, 
+                                        is_eval=True, 
+                                        forced_bs=64)
+        return dataloader
+
 
     def _write_metrics(
         self,

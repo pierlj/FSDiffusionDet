@@ -7,11 +7,11 @@ MODEL:
     STRIDE_IN_1X1: False
   DiffusionDet:
     NUM_PROPOSALS: 500
-    NUM_CLASSES: 16
+    NUM_CLASSES: 20
 DATASETS:
-  TRAIN: ("DOTA_train2017",)
-  VAL: ("DOTA_val2017",)
-  TEST:  ("DOTA_test2017",)
+  TRAIN: ("DIOR_train",)
+  VAL: ("DIOR_val",)
+  TEST:  ("DIOR_test",)
 SOLVER:
   BASE_LR: 0.0001
   STEPS: (99000,)
@@ -37,6 +37,6 @@ TEST:
 FEWSHOT:
   ATTENTION:
     EXTRACT_EVERY: 5
-  K_SHOT: 1
+  K_SHOT: 10
   BASE_SUPPORT: 'rng'
 

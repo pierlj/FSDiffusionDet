@@ -14,6 +14,8 @@ This script is a simplified version of the training script in detectron2/tools.
 import os
 import logging
 
+# import tsnecuda
+# tsne = tsnecuda.TSNE(n_components=2, perplexity=10)
 import torch
 
 import detectron2.utils.comm as comm
@@ -78,7 +80,8 @@ def main(args):
         cfg = setup(args, model_dir)
         if args.transductive:
             cfg.merge_from_list(['TRAIN_MODE', 'transductive',
-                                'MODEL.META_ARCHITECTURE', 'TDiffusionDet'])
+                                'MODEL.META_ARCHITECTURE', 'TDiffusionDet',
+                                'FEWSHOT.K_SHOT', 10])
         if not registered:
             logger.info('Registering dataset from LOCAL CATALOG with key: {}'.format(cfg.DATASETS.TEST[0].split('_')[0]))
             register_dataset(LOCAL_CATALOG[cfg.DATASETS.TEST[0].split('_')[0]])
@@ -99,9 +102,16 @@ def main(args):
         
         dataset_name = cfg.DATASETS.TEST
         _, dataset_metadata = get_datasets(dataset_name, cfg)
-        selected_classes = dataset_metadata.base_classes if base_eval else dataset_metadata.novel_classes
+        if cfg.FEWSHOT.SPLIT_METHOD == 'all_novel':
+            selected_classes = list(dataset_metadata.class_table.keys())
+        else:
+            selected_classes = dataset_metadata.base_classes if base_eval else dataset_metadata.novel_classes
+        all_classes = list(dataset_metadata.class_table.keys())
         model.selected_classes = None if base_eval else selected_classes
-
+        model.base_classes = dataset_metadata.base_classes
+        model.save_dir = model_dir
+        # model.tsne = tsne
+        
         model.support_loader = Trainer.build_support_dataloader(cfg, 
                                             selected_classes, 
                                             [cfg.DATASETS.TRAIN[0]],
