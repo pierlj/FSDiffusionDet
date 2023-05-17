@@ -48,7 +48,7 @@ LOCAL_CATALOG = {'DOTA': dota_dict,
                  'PASCAL': pascal_dict,
                  'COCO': coco_dict,
                  'XVIEW': xview_dict,
-                 'DEEPFRUITS': deepfruits_dict,
-                 'SIXRAY': sixray_dict,
-                 'LOGODET': logodet_dict,
-                 'CLIPART': clipart_dict}
+                 'DeepFruits': deepfruits_dict,
+                 'SIXray': sixray_dict,
+                 'LogoDet': logodet_dict,
+                 'clipart': clipart_dict}
