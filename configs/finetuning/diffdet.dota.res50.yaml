@@ -35,12 +35,7 @@ INPUT:
 # TRAIN_MODE: 'support_attention'
 TRAIN_MODE: 'simplefs'
 FINETUNE:
-  MAX_ITER: 5000
-  MODEL_FREEZING:
-    BACKBONE_AT: 0
-    BACKBONE_MODE: 'all'
-    MODULES: ['backbone']
-    HEAD_ALL: True
+  MAX_ITER: 80000
 TEST:
   EVAL_PERIOD: 5
 # OUTPUT_DIR: 'runs/23-01-2023_17:23:02'

@@ -29,7 +29,7 @@ INPUT:
 # TRAIN_MODE: 'support_attention'
 TRAIN_MODE: 'simplefs'
 FINETUNE:
-  MAX_ITER: 5000
+  MAX_ITER: 80000
 TEST:
   EVAL_PERIOD: 500
 # OUTPUT_DIR: 'runs/23-01-2023_17:23:02'
