@@ -40,7 +40,7 @@ logodet_dict = {'root_path': '/gpfsscratch/rech/vlf/ues92cf/LogoDet/',
 
 clipart_dict = {'root_path': '/gpfsscratch/rech/vlf/ues92cf/clipart/clipart/',
                 'name': 'clipart',
-                'splits': ['train2017'],
+                'splits': ['train2017', 'test2017'],
                 'class_split_file': '/gpfsscratch/rech/vlf/ues92cf/clipart/clipart/classes_split.txt'}
 
 LOCAL_CATALOG = {'DOTA': dota_dict,
