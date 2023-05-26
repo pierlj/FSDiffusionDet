@@ -10,7 +10,6 @@ configs/finetuning/*
 configs/regular/*
 configs/transductive/*
 
-*.json
 *.diff
 
 # compilation and distribution
