@@ -5,7 +5,10 @@ instant_test_output
 inference_test_output
 runs
 runs/*
-configs/*
+configs/attention/*
+configs/finetuning/*
+configs/regular/*
+configs/transductive/*
 
 *.json
 *.diff
