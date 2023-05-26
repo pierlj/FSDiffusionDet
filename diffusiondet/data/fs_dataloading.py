@@ -164,7 +164,7 @@ class FilteredDataLoader():
                         batch_size=batch_size,
                         num_workers=cfg.DATALOADER.NUM_WORKERS,)
             else:
-                self.dataset = SupportMapDataset(dataset, mapper)
+                self.dataset = SupportMapDataset(dataset, mapper, cfg.SEED)
                 self.dataloader = data.DataLoader(
                                 self.dataset,
                                 batch_size=batch_size,
@@ -286,7 +286,7 @@ class SupportMapDataset(data.Dataset):
     Map a function over the elements in a dataset.
     """
 
-    def __init__(self, dataset, map_func):
+    def __init__(self, dataset, map_func, seed):
         """
         Args:
             dataset: a dataset where map function is applied. Can be either
@@ -301,10 +301,10 @@ class SupportMapDataset(data.Dataset):
         self._dataset = dataset
         self._map_func = PicklableWrapper(map_func)  # wrap so that a lambda will work
 
-        self._rng = random.Random(42)
+        self._rng = random.Random(seed)
         self._fallback_candidates = set(range(len(dataset)))
 
-    def __new__(cls, dataset, map_func):
+    def __new__(cls, dataset, map_func, seed):
         return super().__new__(cls)
 
     def __getnewargs__(self):

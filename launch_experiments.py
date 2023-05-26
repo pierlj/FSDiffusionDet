@@ -93,20 +93,24 @@ def build_cfg_list_from_exp_file(study_file):
         study_names = study_names * len(study_json['studies'])
     
     for study_name, study in zip(study_names, study_json['studies']):
-        n_values = [len(values) if isinstance(values, list) else 1 for param, values in study.items()]
-        n_exp = max(n_values)
-        assert all([v == n_exp or v == 1 for v in n_values]), 'Inside one study, the number of different value for a parameter must be either 1 or n_exp'
-        study_dict[study_name] = []
-        for i in range(n_exp):
-            exp_list = []
-            for param, values in study.items():
-                exp_list.append(param)
-                if isinstance(values, list):
-                    exp_list.append(values[i])
-                else:
-                    exp_list.append(values)
-            study_dict[study_name].append(exp_list)
-            
+        seed_list = study_json['seed'] if 'seed' in study_json else [None]
+        for seed in seed_list:
+            n_values = [len(values) if isinstance(values, list) else 1 for param, values in study.items()]
+            n_exp = max(n_values)
+            assert all([v == n_exp or v == 1 for v in n_values]), 'Inside one study, the number of different value for a parameter must be either 1 or n_exp'
+            study_dict[study_name] = []
+            for i in range(n_exp):
+                exp_list = []
+                for param, values in study.items():
+                    exp_list.append(param)
+                    if isinstance(values, list):
+                        exp_list.append(values[i])
+                    else:
+                        exp_list.append(values)
+                    if seed is not None:
+                        exp_list.append("SEED")
+                        exp_list.append(seed)
+                study_dict[study_name].append(exp_list)
     return study_dict
 
 
