@@ -12,7 +12,7 @@ This script is a simplified version of the training script in detectron2/tools.
 """
 
 import os
-import jstyleson
+import json
 from datetime import datetime
 
 import torch
@@ -85,7 +85,7 @@ def main(args):
 
 def build_cfg_list_from_exp_file(study_file):
     with open(study_file, 'r') as f:
-        study_json = jstyleson.load(f)
+        study_json = json.load(f)
     
     study_names = study_json['names']
     study_dict = {}
