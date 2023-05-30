@@ -78,7 +78,7 @@ def build_resnet_dino_fpn_backbone(cfg, input_shape: ShapeSpec):
 
 @BACKBONE_REGISTRY.register()
 def build_resnet_clip_fpn_backbone(cfg, input_shape: ShapeSpec):
-    model, preprocess = clip.load('RN50', 'cpu')
+    model, preprocess = clip.load('RN50', 'cpu', download_root='/gpfswork/rech/vlf/ues92cf/.cache/clip')
     clip_bb = model.visual
     bottom_up = ResNetD2Format(clip_bb, 10, out_features=cfg.MODEL.FPN.IN_FEATURES)
 

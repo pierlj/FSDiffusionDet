@@ -1,7 +1,7 @@
 _BASE_: "../Base-DiffusionDet.yaml"
 MODEL:
   META_ARCHITECTURE: 'FSDiffusionDet'
-  WEIGHTS: "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth"
+  WEIGHTS: "detectron2://benchmark_pretrained_coco/diffdet_coco_res50.pth"
   RESNETS:
     DEPTH: 50
     STRIDE_IN_1X1: False
@@ -9,15 +9,14 @@ MODEL:
     NUM_PROPOSALS: 250
     NUM_CLASSES: 20
 DATASETS:
-  TRAIN: ("DIOR_train",)
-  VAL: ("DIOR_val",)
-  TEST:  ("DIOR_test",)
+  TRAIN: ("clipart_train2017",)
+  VAL: ("clipart_test2017",)
+  TEST:  ("clipart_test2017",)
 SOLVER:
   STEPS: (4000,)
   MAX_ITER: 0
   BASE_LR: 5e-4
-  # MAX_ITER: 20
-  CHECKPOINT_PERIOD: 10000
+  CHECKPOINT_PERIOD: 2500
 INPUT:
   CROP:
     ENABLED: True
@@ -31,6 +30,8 @@ TRAIN_MODE: 'simplefs'
 FINETUNE:
   CROSS_DOMAIN: True
   MAX_ITER: 5000
+  MODEL_FREEZING:
+    HEAD_ALL: True
 TEST:
   EVAL_PERIOD: 500
 # OUTPUT_DIR: 'runs/23-01-2023_17:23:02'
@@ -43,7 +44,5 @@ FEWSHOT:
     EXTRACT_EVERY: 10
     MAX_NUM_CLASSES: 3
   K_SHOT: 10
-  N_WAYS_TEST: 20
-  N_WAYS_TRAIN: 20
   BASE_SUPPORT: 'rng'
 
