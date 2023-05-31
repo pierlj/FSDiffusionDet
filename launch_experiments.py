@@ -107,9 +107,9 @@ def build_cfg_list_from_exp_file(study_file):
                         exp_list.append(values[i])
                     else:
                         exp_list.append(values)
-                    if seed is not None:
-                        exp_list.append("SEED")
-                        exp_list.append(seed)
+                if seed is not None:
+                    exp_list.append("SEED")
+                    exp_list.append(seed)
                 study_dict[study_name].append(exp_list)
     return study_dict
 
