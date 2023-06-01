@@ -1,5 +1,5 @@
 {
-    "names": ["dior_to_dota", "dior_to_dota_fullFT"], 
+    "names": ["dota_check", "pascal_dino_check", "pascal_shots",], 
     "studies":
     [
         // {
@@ -14,18 +14,33 @@
         // "SOLVER.MAX_ITER": 0,
         // "FINETUNE.MAX_ITER": 5000
         // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        // "FEWSHOT.K_SHOT": [10, 10, 10],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // "FINETUNE.MODEL_FREEZING.MODULES" : [[], [], []],
-        // "FINETUNE.MODEL_FREEZING.HEAD_ALL" : false,
-        // "FINETUNE.MODEL_FREEZING.BACKBONE_MODE": "norm",
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
+        {
+        "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
+        "FEWSHOT.K_SHOT": [10],
+        "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/12-02-2023_18:53:10/model_base_final.pth",
+        "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
+        "SOLVER.IMS_PER_BATCH": 12,
+        "SOLVER.MAX_ITER": 0,
+        "FINETUNE.MAX_ITER": 5000
+        },
+        {
+        "CFG_FILE": "configs/finetuning/diffdet.pascal.res50.yaml",
+        "FEWSHOT.K_SHOT": [3],
+        "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/Backbones/model_base_PASCAL_500P_BS16_DINOH/model_base_final.pth",
+        "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
+        "SOLVER.IMS_PER_BATCH": 12,
+        "SOLVER.MAX_ITER": 0,
+        "FINETUNE.MAX_ITER": 5000
+        },
+        {
+        "CFG_FILE": "configs/finetuning/diffdet.pascal.res50.yaml",
+        "FEWSHOT.K_SHOT": [1,2,3,5,10,20,30,50,100],
+        "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/Backbones/model_base_PASCAL_500P_BS16_IN/model_base_final.pth",
+        "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
+        "SOLVER.IMS_PER_BATCH": 12,
+        "SOLVER.MAX_ITER": 0,
+        "FINETUNE.MAX_ITER": 5000
+        },
         // {
         // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
         // "FEWSHOT.K_SHOT": 10,
@@ -35,26 +50,26 @@
         // "SOLVER.MAX_ITER": 0,
         // "FINETUNE.MAX_ITER": 5000
         // },
-        {
-        "CFG_FILE": "configs/finetuning/diffdet.dota.res50.CD.yaml",
-        "FEWSHOT.K_SHOT": [1, 5, 10, 20, 50],
-        "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/Backbones/model_base_DIOR_500P_BS16_2G/model_base_DIOR_500P_BS16_2G.pth",
-        "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
+        // {
+        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.CD.yaml",
+        // "FEWSHOT.K_SHOT": [1, 5, 10, 20, 50],
+        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/Backbones/model_base_DIOR_500P_BS16_2G/model_base_DIOR_500P_BS16_2G.pth",
+        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
+        // // "FINETUNE.MODEL_FREEZING.MODULES" : [[], [], [], [], []],
+        // "SOLVER.IMS_PER_BATCH": 12,
+        // "SOLVER.MAX_ITER": 0,
+        // "FINETUNE.MAX_ITER": 5000
+        // },
+        // {
+        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.CD.yaml",
+        // "FEWSHOT.K_SHOT": [1, 5, 10, 20, 50],
+        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/Backbones/model_base_DIOR_500P_BS16_2G/model_base_DIOR_500P_BS16_2G.pth",
+        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
         // "FINETUNE.MODEL_FREEZING.MODULES" : [[], [], [], [], []],
-        "SOLVER.IMS_PER_BATCH": 12,
-        "SOLVER.MAX_ITER": 0,
-        "FINETUNE.MAX_ITER": 5000
-        },
-        {
-        "CFG_FILE": "configs/finetuning/diffdet.dota.res50.CD.yaml",
-        "FEWSHOT.K_SHOT": [1, 5, 10, 20, 50],
-        "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/Backbones/model_base_DIOR_500P_BS16_2G/model_base_DIOR_500P_BS16_2G.pth",
-        "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        "FINETUNE.MODEL_FREEZING.MODULES" : [[], [], [], [], []],
-        "SOLVER.IMS_PER_BATCH": 12,
-        "SOLVER.MAX_ITER": 0,
-        "FINETUNE.MAX_ITER": 5000
-        },
+        // "SOLVER.IMS_PER_BATCH": 12,
+        // "SOLVER.MAX_ITER": 0,
+        // "FINETUNE.MAX_ITER": 5000
+        // },
         // {
         // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
         // "FEWSHOT.K_SHOT": [10, 10, 10, 10, 10],

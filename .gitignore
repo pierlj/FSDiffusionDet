@@ -52,7 +52,7 @@ _darcs
 !/datasets/*.*
 /projects/*/datasets
 
-diffusiondet/data/local_catalog.py
+/diffusiondet/data/local_catalog.py
 
 gpfswork/
 gpfswork/*

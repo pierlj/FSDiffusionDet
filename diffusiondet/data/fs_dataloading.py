@@ -140,16 +140,15 @@ class FilteredDataLoader():
         self.dataset_metadata = dataset_metadata
         self.is_eval = is_eval
         if not is_eval:
-            self.dataloader = build_detection_train_loader(cfg,
-                    mapper=mapper,
-                    dataset=dataset,
-                    sampler=sampler)
+            self.dataloader = build_detection_train_loader(
+                dataset=dataset,
+                mapper=mapper,
+                sampler=sampler,
+                total_batch_size=min(len(self.sampler), cfg.SOLVER.IMS_PER_BATCH),
+                aspect_ratio_grouping=False)
             self.dataloader.dataset.pin_memory = True
             self.keep_annotations_from_classes = mapper.selected_classes
             self.draw_images_from_classes = sampler.selected_classes
-
-            self.dataloader.batch_size = min(len(self.dataloader.dataset),
-                                        self.dataloader.batch_size)
 
         else:
             self.sampler = InferenceSampler(len(dataset))

@@ -185,7 +185,7 @@ class FineTuningTrainer(DiffusionTrainer):
         
         # Update cfg params 
         self.cfg.merge_from_list(['SOLVER.MAX_ITER', self.cfg.FINETUNE.MAX_ITER,
-                                    'TEST.EVAL_PERIOD', 250])
+                                    'TEST.EVAL_PERIOD', 50])
         self.scheduler = self.build_lr_scheduler(self.cfg, self.optimizer)
 
         # when restarting finetuning iter should be incremented from value in checkpoint
