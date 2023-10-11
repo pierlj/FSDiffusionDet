@@ -44,4 +44,4 @@ DATALOADER:
   FILTER_EMPTY_ANNOTATIONS: False
   NUM_WORKERS: 0
 VERSION: 2
-OUTPUT_DIR: '/media/pierre/Data_SSD1/Experiments_FSDiff/runs/'
+OUTPUT_DIR: 'runs/'

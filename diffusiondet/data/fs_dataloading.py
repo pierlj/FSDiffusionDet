@@ -140,12 +140,14 @@ class FilteredDataLoader():
         self.dataset_metadata = dataset_metadata
         self.is_eval = is_eval
         if not is_eval:
-            self.dataloader = build_detection_train_loader(
-                dataset=dataset,
-                mapper=mapper,
-                sampler=sampler,
-                total_batch_size=min(len(self.sampler), cfg.SOLVER.IMS_PER_BATCH),
-                aspect_ratio_grouping=False)
+            self.dataloader = build_detection_train_loader(dataset=dataset,
+                                                           mapper=mapper,
+                                                           sampler=sampler,
+                                                           total_batch_size=min(len(sampler), cfg.SOLVER.IMS_PER_BATCH)
+                                                           if len(sampler) != 0 else cfg.SOLVER.IMS_PER_BATCH,
+                                                           aspect_ratio_grouping=False,
+                                                           num_workers=cfg.DATALOADER.NUM_WORKERS
+                                                           )
             self.dataloader.dataset.pin_memory = True
             self.keep_annotations_from_classes = mapper.selected_classes
             self.draw_images_from_classes = sampler.selected_classes
@@ -163,7 +165,7 @@ class FilteredDataLoader():
                         batch_size=batch_size,
                         num_workers=cfg.DATALOADER.NUM_WORKERS,)
             else:
-                self.dataset = SupportMapDataset(dataset, mapper)
+                self.dataset = SupportMapDataset(dataset, mapper, cfg.SEED)
                 self.dataloader = data.DataLoader(
                                 self.dataset,
                                 batch_size=batch_size,
@@ -285,7 +287,7 @@ class SupportMapDataset(data.Dataset):
     Map a function over the elements in a dataset.
     """
 
-    def __init__(self, dataset, map_func):
+    def __init__(self, dataset, map_func, seed):
         """
         Args:
             dataset: a dataset where map function is applied. Can be either
@@ -300,10 +302,10 @@ class SupportMapDataset(data.Dataset):
         self._dataset = dataset
         self._map_func = PicklableWrapper(map_func)  # wrap so that a lambda will work
 
-        self._rng = random.Random(42)
+        self._rng = random.Random(seed)
         self._fallback_candidates = set(range(len(dataset)))
 
-    def __new__(cls, dataset, map_func):
+    def __new__(cls, dataset, map_func, seed):
         return super().__new__(cls)
 
     def __getnewargs__(self):
