@@ -4,7 +4,7 @@ MODEL:
   # BACKBONE:
   #   NAME: 'build_resnet_dino_fpn_backbone'
   META_ARCHITECTURE: 'FSDiffusionDet'
-  WEIGHTS: "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth"
+  # WEIGHTS: "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth"
   RESNETS:
     DEPTH: 50
     STRIDE_IN_1X1: False
@@ -18,7 +18,7 @@ DATASETS:
 SOLVER:
   IMS_PER_BATCH: 16 
   STEPS: (4000,)
-  MAX_ITER: 0
+  MAX_ITER: 75000
   CHECKPOINT_PERIOD: 10000
   # LR_SCHEDULER_NAME: 'WarmupCosineLR'
   BASE_LR: 1e-4
@@ -37,7 +37,7 @@ TRAIN_MODE: 'simplefs'
 FINETUNE:
   MAX_ITER: 80000
 TEST:
-  EVAL_PERIOD: 5
+  EVAL_PERIOD: 500
 # OUTPUT_DIR: 'runs/23-01-2023_17:23:02'
 # OUTPUT_DIR: 'runs/07-02-2023_17:34:01'
 FEWSHOT:

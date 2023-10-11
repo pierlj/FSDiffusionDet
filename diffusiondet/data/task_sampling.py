@@ -49,6 +49,11 @@ class TaskSampler():
             self.c_test = self.dataset_metadata.novel_classes + self.dataset_metadata.base_classes
             self.c_train = []
             self.c_test.sort()
+        
+        elif split_method == 'all_base':
+            self.c_train = self.dataset_metadata.novel_classes + self.dataset_metadata.base_classes
+            self.c_test = []
+            self.c_train.sort()
 
     def sample_train_val_tasks(self, n_ways_train, n_ways_test, verbose=False):
         """

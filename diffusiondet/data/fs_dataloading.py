@@ -34,7 +34,7 @@ class ClassSampler(Sampler):
         self.slice = slice(0, n_query)
         self.shuffle = shuffle
         self.is_train = is_train
-        self.seed = seed
+        self.seed = cfg.SEED
 
         self.class_table = copy.deepcopy(dataset_metadata.class_table)
         self.filter_table()
@@ -243,7 +243,7 @@ class SupportClassMapper(DiffusionDetDatasetMapper):
         self.contiguous_mapping = contiguous_mapping
         self.class_repartition = class_repartition
         self.remap_labels = remap_labels
-        self.seed = seed
+        self.seed = cfg.SEED
         self.base_support = base_support
         self.keep_all_instances = keep_all_instances
         self.rng = torch.Generator()

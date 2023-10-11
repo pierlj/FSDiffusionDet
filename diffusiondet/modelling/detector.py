@@ -510,7 +510,6 @@ class DiffusionDet(nn.Module):
         else:
             # For each box we assign the best class or the second best if the best on is `no_object`.
             scores, labels = F.softmax(box_cls, dim=-1)[:, :, :-1].max(-1)
-
             for i, (scores_per_image, labels_per_image, box_pred_per_image, image_size) in enumerate(zip(
                     scores, labels, box_pred, image_sizes
             )):

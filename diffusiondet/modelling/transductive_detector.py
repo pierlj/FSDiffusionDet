@@ -294,7 +294,7 @@ class TDiffusionDet(DiffusionDet):
         support_labels, sorted_indices = torch.sort(support_labels)
         support_embeddings = support_embeddings[sorted_indices]
 
-        support_aggregation = False
+        support_aggregation = True
         if support_aggregation:
             support_embeddings = support_embeddings.reshape(n_ways, k_shot, -1).mean(dim=1)
             support_labels = support_labels.reshape(n_ways, k_shot)[:,0]

@@ -55,7 +55,7 @@ class TransductiveTrainer(DiffusionTrainer):
         self.build_dataset(cfg)
         selected_classes = self.task_sampler.c_train
 
-        torch.manual_seed(6565)
+        torch.manual_seed(cfg.SEED)
         data_loader = self.build_train_loader(cfg, selected_classes)
 
         model = create_ddp_model(model, broadcast_buffers=False)
@@ -150,7 +150,7 @@ class TransductiveTrainer(DiffusionTrainer):
                             backbone_freeze_at=self.cfg.FINETUNE.MODEL_FREEZING.BACKBONE_AT, # Backbone freeze stages
                             freeze_cls_reg_module=self.cfg.FINETUNE.MODEL_FREEZING.HEAD_ALL) # When True: last layer of each head only is trained
              
-                            
+
         # update allowed classes
         if self.cfg.FINETUNE.NOVEL_ONLY:
             selected_classes = self.task_sampler.c_test

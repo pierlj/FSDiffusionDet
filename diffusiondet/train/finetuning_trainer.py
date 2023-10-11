@@ -55,7 +55,7 @@ class FineTuningTrainer(DiffusionTrainer):
         self.build_dataset(cfg)
         selected_classes = self.task_sampler.c_train
 
-        torch.manual_seed(6565)
+        torch.manual_seed(cfg.SEED)
         data_loader = self.build_train_loader(cfg, selected_classes)
 
         model = create_ddp_model(model, broadcast_buffers=False)
@@ -162,7 +162,24 @@ class FineTuningTrainer(DiffusionTrainer):
                             freeze_mode=self.cfg.FINETUNE.MODEL_FREEZING.BACKBONE_MODE, # what to freeze in backbone
                             backbone_freeze_at=self.cfg.FINETUNE.MODEL_FREEZING.BACKBONE_AT, # Backbone freeze stages
                             freeze_cls_reg_module=self.cfg.FINETUNE.MODEL_FREEZING.HEAD_ALL) # When True: last layer of each head only is trained
-             
+
+        # compute plasticity
+        total_params = 0
+        trainable_params = 0
+        for name, params in self.model.named_parameters():
+            print(name, params.shape)
+            if 'support_extractor' not in name:
+                
+                if 'head_series' not in name or 'head_series.0.' in name:
+                    total_params += params.numel()
+                    if params.requires_grad:
+                        print(name, params.shape, 'Trainable')
+                        trainable_params += params.numel()
+                    else:
+                        print(name, params.shape, 'Frozen')
+
+        print('Total number of params: {}\nTrainable params: {}\nPlasticity: {}%'.format(total_params, trainable_params, trainable_params/total_params*100))   
+
                             
         # update allowed classes
         if self.cfg.FINETUNE.NOVEL_ONLY:
@@ -185,7 +202,7 @@ class FineTuningTrainer(DiffusionTrainer):
         
         # Update cfg params 
         self.cfg.merge_from_list(['SOLVER.MAX_ITER', self.cfg.FINETUNE.MAX_ITER,
-                                    'TEST.EVAL_PERIOD', 50])
+                                    'TEST.EVAL_PERIOD', 250])
         self.scheduler = self.build_lr_scheduler(self.cfg, self.optimizer)
 
         # when restarting finetuning iter should be incremented from value in checkpoint

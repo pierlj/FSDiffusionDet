@@ -1,218 +1,37 @@
 {
-    "names": ["dota_check", "pascal_dino_check", "pascal_shots",], 
+    "names": ["dota_regular"], 
     "studies":
     [
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        // "FEWSHOT.K_SHOT": [10, 10, 10],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // "FINETUNE.MODEL_FREEZING.MODULES" : [[], [], []],
-        // "FINETUNE.MODEL_FREEZING.HEAD_ALL" : false,
-        // "FINETUNE.MODEL_FREEZING.BACKBONE_MODE": "bias",
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
         {
         "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        "FEWSHOT.K_SHOT": [10],
-        "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/12-02-2023_18:53:10/model_base_final.pth",
-        "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        "SOLVER.IMS_PER_BATCH": 12,
-        "SOLVER.MAX_ITER": 0,
-        "FINETUNE.MAX_ITER": 5000
-        },
-        {
-        "CFG_FILE": "configs/finetuning/diffdet.pascal.res50.yaml",
-        "FEWSHOT.K_SHOT": [3],
-        "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/Backbones/model_base_PASCAL_500P_BS16_DINOH/model_base_final.pth",
-        "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        "SOLVER.IMS_PER_BATCH": 12,
-        "SOLVER.MAX_ITER": 0,
-        "FINETUNE.MAX_ITER": 5000
-        },
-        {
-        "CFG_FILE": "configs/finetuning/diffdet.pascal.res50.yaml",
-        "FEWSHOT.K_SHOT": [1,2,3,5,10,20,30,50,100],
-        "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/Backbones/model_base_PASCAL_500P_BS16_IN/model_base_final.pth",
-        "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        "SOLVER.IMS_PER_BATCH": 12,
-        "SOLVER.MAX_ITER": 0,
-        "FINETUNE.MAX_ITER": 5000
+        "MODEL.DiffusionDet.NUM_PROPOSALS" :200,
+        "FEWSHOT.SPLIT_METHOD": "all_base",
+        "FINETUNE.MAX_ITER": 10
+        
         },
         // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
+        // "CFG_FILE": "configs/finetuning/diffdet.pascal.res50.yaml",
         // "FEWSHOT.K_SHOT": 10,
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
+        // "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/Backbones/model_base_PASCAL_500P_BS16_IN/model_base_final.pth",
         // "MODEL.DiffusionDet.NUM_PROPOSALS" : [200, 250, 300, 350, 400, 450, 500],
         // "SOLVER.IMS_PER_BATCH": 12,
         // "SOLVER.MAX_ITER": 0,
         // "FINETUNE.MAX_ITER": 5000
         // },
         // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.CD.yaml",
-        // "FEWSHOT.K_SHOT": [1, 5, 10, 20, 50],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/Backbones/model_base_DIOR_500P_BS16_2G/model_base_DIOR_500P_BS16_2G.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // // "FINETUNE.MODEL_FREEZING.MODULES" : [[], [], [], [], []],
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.CD.yaml",
-        // "FEWSHOT.K_SHOT": [1, 5, 10, 20, 50],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/Backbones/model_base_DIOR_500P_BS16_2G/model_base_DIOR_500P_BS16_2G.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // "FINETUNE.MODEL_FREEZING.MODULES" : [[], [], [], [], []],
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        // "FEWSHOT.K_SHOT": [10, 10, 10, 10, 10],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // // "FINETUNE.MODEL_FREEZING.MODULES" : [[], [], [], [], []],
-        // "MODEL.DiffusionDet.REG_COST_TYPE": "siou",
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        // "FEWSHOT.K_SHOT": [10, 10, 10, 10, 10],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // // "FINETUNE.MODEL_FREEZING.MODULES" : [[], [], [], [], []],
-        // "MODEL.DiffusionDet.REG_COST_TYPE": "siou",
-        // "MODEL.DiffusionDet.REG_LOSS_TYPE": "siou",
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dior.res50.CD.yaml",
-        // "FEWSHOT.K_SHOT": [1,5,10, 20, 50],
-        // // "PREVENT_WEIGHTS_LOADING": true,
-        // // "MODEL.BACKBONE.NAME": "build_resnet_dino_fpn_backbone",
-        // "MODEL.WEIGHTS": "detectron2://ImageNetPretrained/torchvision/R-50.pkl",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS": 500,
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dior.res50.CD.yaml",
-        // "FEWSHOT.K_SHOT": [1,5, 10, 20, 50],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // // "FINETUNE.MODEL_FREEZING.MODULES" : [[], [], [], [], [], [], []],
-        // // "FINETUNE.MODEL_FREEZING.HEAD_ALL" : false,
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dior.res50.CD.yaml",
-        // "FEWSHOT.K_SHOT": [1,5, 10, 20, 50],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // "FINETUNE.MODEL_FREEZING.MODULES" : [[], [], [], [], []],
-        // // "FINETUNE.MODEL_FREEZING.HEAD_ALL" : false,
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        // "FEWSHOT.K_SHOT": [10, 10, 10],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // "FINETUNE.MODEL_FREEZING.MODULES" : [["backbone"], ["backbone"], ["backbone"]],
-        // "FINETUNE.MODEL_FREEZING.HEAD_ALL" : true,
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        // "FEWSHOT.K_SHOT": [10, 10, 10],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // "MODEL.DiffusionDet.REG_LOSS_TYPE": "siou",
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        // "FEWSHOT.K_SHOT": [10, 10, 10],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // "MODEL.DiffusionDet.REG_COST_TYPE": "siou",
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        // "FEWSHOT.K_SHOT": [10, 10, 10],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // "MODEL.DiffusionDet.REG_LOSS_TYPE": "siou",
-        // "MODEL.DiffusionDet.REG_COST_TYPE": "siou",
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        // "FEWSHOT.K_SHOT": [1, 10, 30, 50],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 250,
-        // "MODEL.DiffusionDet.REG_COST_TYPE": "siou",
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        // "FEWSHOT.K_SHOT": [1, 10, 30, 50],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 250,
-        // "MODEL.DiffusionDet.REG_LOSS_TYPE": "siou",
-        // "MODEL.DiffusionDet.REG_COST_TYPE": "siou",
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.CD.yaml",
-        // "FEWSHOT.K_SHOT": [1, 10, 50],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/Backbones/model_base_COCO_500P_BS16_2G/model_base_COCO_500P_BS16_2G.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 250,
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        // "FEWSHOT.K_SHOT": [1, 3, 5, 10, 20, 30, 40, 50],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000,
-        // "SOLVER.STEPS": [[2500,], [2500,], [2500,], [2500,], [2500,], [2500,], [2500,], [2500,]]
-        // },
-        // {
         // "CFG_FILE": "configs/finetuning/diffdet.dior.res50.yaml",
-        // "FEWSHOT.K_SHOT": [1, 10, 50],
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/12-02-2023_18:53:10/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
+        // "FEWSHOT.K_SHOT": 10,
+        // "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/Backbones/model_base_DIOR_500P_BS16_IN/model_base_final.pth",
+        // "MODEL.DiffusionDet.NUM_PROPOSALS" : [200, 250, 300, 350, 400, 450, 500],
+        // "SOLVER.IMS_PER_BATCH": 12,
+        // "SOLVER.MAX_ITER": 0,
+        // "FINETUNE.MAX_ITER": 5000
+        // },
+        // {
+        // "CFG_FILE": "configs/finetuning/diffdet.coco.res50.yaml",
+        // "FEWSHOT.K_SHOT": 10,
+        // "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/Backbones/model_base_COCO_500P_BS16_2G/model_base_COCO_500P_BS16_2G.pth",
+        // "MODEL.DiffusionDet.NUM_PROPOSALS" : [200, 250, 300, 350, 400, 450, 500],
         // "SOLVER.IMS_PER_BATCH": 12,
         // "SOLVER.MAX_ITER": 0,
         // "FINETUNE.MAX_ITER": 5000
@@ -220,20 +39,74 @@
         // {
         // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
         // "FEWSHOT.K_SHOT": 10,
-        // "MODEL.WEIGHTS": "/media/pierre/Data_SSD/Experiments_FSDiff/runs/07-02-2023_17:34:01/model_base_final.pth",
-        // "MODEL.DiffusionDet.NUM_PROPOSALS" : [200, 220, 240 , 260, 280, 300, 320, 340, 360, 380, 400],
-        // "SOLVER.IMS_PER_BATCH": 12,
-        // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
-        // },
-        // {
-        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
-        // "FEWSHOT.K_SHOT": [10,20,50],
-        // "MODEL.WEIGHTS": "detectron2://ImageNetPretrained/torchvision/R-50.pkl",
+        // "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/12-02-2023_18:53:10/model_base_final.pth",
+        // "MODEL.BACKBONE.FREEZE_AT": 0,
         // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
         // "SOLVER.IMS_PER_BATCH": 12,
         // "SOLVER.MAX_ITER": 0,
-        // "FINETUNE.MAX_ITER": 5000
+        // "FINETUNE.MAX_ITER": 5000,
+        // "FINETUNE.MODEL_FREEZING.BACKBONE_AT": 0,
+        // "FINETUNE.MODEL_FREEZING.BACKBONE_MODE": ["bias", "norm"],
+        // "FINETUNE.MODEL_FREEZING.MODULES": [["backbone","head"], ["backbone","head"]],
+        // "FINETUNE.MODEL_FREEZING.HEAD_ALL": false,
+        // },
+        // {
+        // "CFG_FILE": "configs/finetuning/diffdet.dota.res50.yaml",
+        // "FEWSHOT.K_SHOT": 10,
+        // "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/12-02-2023_18:53:10/model_base_final.pth",
+        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 300,
+        // "SOLVER.IMS_PER_BATCH": 16,
+        // "SOLVER.MAX_ITER": 0,
+        // "FINETUNE.MAX_ITER": 5000,
+        // "FINETUNE.MODEL_FREEZING.BACKBONE_AT": 0,
+        // "FINETUNE.MODEL_FREEZING.BACKBONE_MODE": "bias",
+        // "FINETUNE.MODEL_FREEZING.MODULES": [["backbone"], ["backbone"], ["backbone"], ["backbone"], ["backbone"]],
+        // "FINETUNE.MODEL_FREEZING.HEAD_ALL": false,
+        // "SEED": [42, 69, 1729, 360, 999]
+        // },
+        // {
+        // "CFG_FILE": "configs/finetuning/diffdet.dior.res50.yaml",
+        // "FEWSHOT.K_SHOT": 10,
+        // "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/Backbones/model_base_DIOR_500P_BS16_DINOH/model_base_final.pth",
+        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 500,
+        // "SOLVER.IMS_PER_BATCH": 16,
+        // "SOLVER.MAX_ITER": 0,
+        // "FINETUNE.MAX_ITER": 5000,
+        // "FINETUNE.MODEL_FREEZING.BACKBONE_AT": 0,
+        // "FINETUNE.MODEL_FREEZING.BACKBONE_MODE": "all",
+        // "FINETUNE.MODEL_FREEZING.MODULES": [["backbone"], ["backbone"], ["backbone"], ["backbone"]],
+        // "FINETUNE.MODEL_FREEZING.HEAD_ALL": false,
+        // "MODEL.BACKBONE.NAME": "build_resnet_dino_fpn_backbone",
+        // "SEED": [69, 1729, 360, 999]
+        // },
+        // {
+        // "CFG_FILE": "configs/finetuning/diffdet.pascal.res50.yaml",
+        // "FEWSHOT.K_SHOT": 10,
+        // "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/Backbones/model_base_PASCAL_500P_BS16_DINOH/model_base_final.pth",
+        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 200,
+        // "SOLVER.IMS_PER_BATCH": 16,
+        // "SOLVER.MAX_ITER": 0,
+        // "FINETUNE.MAX_ITER": 5000,
+        // "FINETUNE.MODEL_FREEZING.BACKBONE_AT": 0,
+        // "FINETUNE.MODEL_FREEZING.BACKBONE_MODE": "all",
+        // "FINETUNE.MODEL_FREEZING.MODULES": [["backbone"], ["backbone"], ["backbone"], ["backbone"], ["backbone"]],
+        // "FINETUNE.MODEL_FREEZING.HEAD_ALL": false,
+        // "MODEL.BACKBONE.NAME": "build_resnet_dino_fpn_backbone",
+        // "SEED": [42, 69, 1729, 360, 999]
+        // },
+        // {
+        // "CFG_FILE": "configs/finetuning/diffdet.coco.res50.yaml",
+        // "FEWSHOT.K_SHOT": 10,
+        // "MODEL.WEIGHTS": "/home/pierre/Documents/PHD/FSDiffusionDet/runs/Backbones/model_base_COCO_500P_BS16_2G/model_base_COCO_500P_BS16_2G.pth",
+        // "MODEL.DiffusionDet.NUM_PROPOSALS" : 200,
+        // "SOLVER.IMS_PER_BATCH": 16,
+        // "SOLVER.MAX_ITER": 0,
+        // "FINETUNE.MAX_ITER": 5000,
+        // "FINETUNE.MODEL_FREEZING.BACKBONE_AT": 4,
+        // "FINETUNE.MODEL_FREEZING.BACKBONE_MODE": "all",
+        // "FINETUNE.MODEL_FREEZING.MODULES": [["backbone"], ["backbone"], ["backbone"], ["backbone"], ["backbone"]],
+        // "FINETUNE.MODEL_FREEZING.HEAD_ALL": false,
+        // "SEED": [42, 69, 1729, 360, 999]
         // }
     ]
 }

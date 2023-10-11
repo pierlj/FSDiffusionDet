@@ -72,7 +72,7 @@ def main(args):
                        (True, os.path.join(model_dir, 'model_base_final.pth'))]
 
     os.rename(os.path.join(model_dir, 'last_checkpoint'), os.path.join(model_dir, '_last_checkpoint'))
-    for base_eval, path in model_paths:
+    for base_eval, path in model_paths[1:]:
 
         with open(os.path.join(model_dir, 'last_checkpoint'), 'w') as f:
             f.write(path.split('/')[-1])
@@ -112,11 +112,11 @@ def main(args):
         model.save_dir = model_dir
         # model.tsne = tsne
         
-        model.support_loader = Trainer.build_support_dataloader(cfg, 
-                                            selected_classes, 
-                                            [cfg.DATASETS.TRAIN[0]],
-                                            n_query=cfg.FEWSHOT.K_SHOT, 
-                                            remap_labels=cfg.FINETUNE.NOVEL_ONLY)
+        # model.support_loader = Trainer.build_support_dataloader(cfg, 
+        #                                     selected_classes, 
+        #                                     [cfg.DATASETS.TRAIN[0]],
+        #                                     n_query=cfg.FEWSHOT.K_SHOT, 
+        #                                     remap_labels=cfg.FINETUNE.NOVEL_ONLY)
 
         output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
         metric_save_path = os.path.join(cfg.OUTPUT_DIR, 'base_classes_metrics.json' if base_eval else \
